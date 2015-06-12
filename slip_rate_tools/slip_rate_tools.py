@@ -9,6 +9,7 @@ import numpy as np
 #import Splines
 from Splines import spline1d
 from scipy.interpolate import interp1d
+from scipy.optimize import minimize
 
 
 def fit_history_spline(age_array, offset_array):
@@ -266,11 +267,119 @@ def get_log_pts(p_min, p_max, n_pts=50, base=np.e):
         pts_array = np.hstack([0, np.logspace(np.log(1e-5), np.log(p_max),
                                                 num=n_pts-1, base=base)])
     else:
-        pts_array = np.logspace(p_min, p_max, num=n_pts, base=base)                                                
+        pts_array = np.logspace(p_min, p_max, num=n_pts, base=base)
+
     return pts_array
+
 
 def tspline_interpolate():
     pass
 
-def calc_stats():
-    pass
+
+def make_age_offset_arrays(offset_list, n, check_increasing=False, 
+                           zero_offset_age=0.):
+    
+    #TODO: use random seeding
+    
+    
+    age_array = np.zeros((n, len(offset_list)+1))
+    off_array = np.zeros((n, len(offset_list)+1))
+    
+    age_array[:,0] = zero_offset_age
+    
+    for i, off_mark in enumerate(offset_list):
+        col = i+1
+        age_array[:,col], off_array[:,col] = off_mark.sample(n)
+        
+    if check_increasing == True:
+        
+        def make_inc_bool(age_array, off_array, n):
+        
+            inc_bool = np.ones((age_array.shape[0]), dtype=int)
+            for row in range(n):
+                age_inc = check_increasing(age_array[row,:])
+                off_inc = check_increasing(off_array[row,:])
+                
+                if not (age_inc and off_inc):
+                    inc_bool[row] = 0
+                    
+            inc_bool = np.array(inc_bool, dtype=bool)
+                
+            return inc_bool
+    
+        inc_bool = make_inc_bool(age_array, off_array, n)
+                    
+        age_array = age_array[inc_bool, :]
+        off_array = off_array[inc_bool, :]
+        
+        while age_array.shape[0] < n:
+            
+            next_age_array, next_off_array = make_age_offset_arrays(
+                                                offset_list, n,
+                                                check_increasing=False,
+                                                zero_offset_age=zero_offset_age)
+            
+            next_inc_bool = make_inc_bool(next_age_array, next_off_array, n)
+            
+            next_age_array = next_age_array[next_inc_bool, :]
+            next_off_array = next_off_array[next_inc_bool, :]
+           
+            off_array = np.vstack([off_array, next_off_array])
+            age_array = np.vstack([age_array, next_age_array])
+            
+    return age_array[:n,:], off_array[:n,:]
+
+
+def piece_lin_objective(params, x_data, y_data): 
+    '''docs
+
+    Modified from a function by Andreas Hillboll on the StatsModels
+    mailing list.
+    '''
+    y1 = 0.
+    y2, y3, x2 = params
+    x1, x3 = x_data[0], x_data[-1] 
+    Xbefore = y1 + (x_data - x1) * (y2 - y1) / (x2 - x1) 
+    Xafter = y2 + (x_data - x2) * (y3 - y2) / (x3 - x2) 
+    Xbreak = np.where(x_data <= x2, Xbefore, Xafter) 
+    return (ma.masked_invalid(Xbreak - y_data)**2).sum()
+
+
+def piece_lin_opt(x_data, y_data):
+    
+    init_guesses = (np.mean(y_data), np.mean(y_data), np.mean(x_data))
+    bounds = ((0, np.max(y_data)), (0., np.max(y_data)), (0., np.max(y_data)))
+    
+    
+    res = minimize(piece_lin_objective, init_guesses, (x_data, y_data),
+                   method="L-BFGS-B", bounds=bounds)
+    
+    sum_sq_err = piece_lin_objective(res.x, x_data, y_data)
+    
+    y2, y3, x2 = res.x
+    
+    slope1 = y2 / x2
+    slope2 = ((y3 - y2) / (np.max(x_data) - x2))
+    breakpoint = x2
+    
+    return slope1, slope2, breakpoint, sum_sq_err
+
+
+def lin_fit(x_data, y_data):
+    x = x_data[:,np.newaxis]
+    m, _, _, _ = np.linalg.lstsq(x, y_data)
+    m = m[0]
+    
+    sum_sq_err = ((y_data - (m * x_data))**2).sum()
+    
+    return m, sum_sq_erri
+
+
+def log_like(sum_sq, n):
+    
+    return -n / 2 * np.log(sum_sq)
+
+
+def BIC(log_like, n, p):
+    
+    return log_like - ( 0.5 * p * np.log(n / 2 * np.pi))
