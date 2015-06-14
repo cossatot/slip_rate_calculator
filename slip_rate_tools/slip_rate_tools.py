@@ -10,7 +10,9 @@ import numpy as np
 from Splines import spline1d
 from scipy.interpolate import interp1d
 from scipy.optimize import minimize
+import pandas as pd
 
+# TODO: Use Bayes to refine offset estimates given slip rate constraints
 
 def fit_history_spline(age_array, offset_array):
 
@@ -76,17 +78,19 @@ class OffsetMarker:
         source: Source for information (e.g., what article, field campaign)
     
     """
+
     def __init__(self, offsets=np.array([]), offset_probs=None,
                  offset_vals=None, offset_mean=None, offset_median=None,
                  offset_sd=None, offset_mad=None,
                  offset_min=None, offset_max=None,
                  offset_seed=None,
-                 offset_dist_type='unspecified', ages=np.array([]),
+                 offset_dist_type='unspecified', offset_units='unspecified',
+                 ages=np.array([]),
                  age_probs=None, age_vals=None, 
                  age_mean=None, age_median=None, age_sd=None, age_mad=None,
                  age_min=None, age_max=None,
                  age_seed=None,
-                 age_dist_type='unspecified', 
+                 age_dist_type='unspecified', age_units='unspecified',
                  source='None'):
 
             self.offsets = offsets
@@ -98,6 +102,7 @@ class OffsetMarker:
             self.offset_mad = offset_mad
             self.offset_min = offset_min
             self.offset_max = offset_max
+            self.offset_units = offset_units
 
             if offset_dist_type != 'unspecified':
                 self.offset_dist_type = offset_dist_type
@@ -119,6 +124,7 @@ class OffsetMarker:
             self.age_mad = age_mad
             self.age_min = age_min
             self.age_max = age_max
+            self.age_units = age_units
 
             if age_dist_type != 'unspecified':
                 self.age_dist_type = age_dist_type
@@ -261,6 +267,21 @@ def check_increasing(in_array):
     return np.all(dx >= 0)
 
 
+def check_unit_consistency(offset_list):
+    off_unit_list = [om.offset_units for om in offset_list]
+    age_unit_list = [om.age_units for om in age_list]
+
+    for off_u in off_unit_list:
+        if off_u != off_unit_list[0]:
+            raise Exception('OffsetMarker units not consistent.')
+    
+    for age_u in age_unit_list:
+        if age_u != age_unit_list[0]:
+            raise Exception('OffsetMarker units not consistent.')
+
+    return
+
+
 def get_log_pts(p_min, p_max, n_pts=50, base=np.e):
     """Generates n_pts length array of logarithmically spaced points"""
     if p_min == 0:
@@ -280,7 +301,6 @@ def make_age_offset_arrays(offset_list, n, check_increasing=False,
                            zero_offset_age=0.):
     
     #TODO: use random seeding
-    
     
     age_array = np.zeros((n, len(offset_list)+1))
     off_array = np.zeros((n, len(offset_list)+1))
@@ -372,14 +392,37 @@ def lin_fit(x_data, y_data):
     
     sum_sq_err = ((y_data - (m * x_data))**2).sum()
     
-    return m, sum_sq_erri
+    return m, sum_sq_err
 
 
-def log_like(sum_sq, n):
+def do_linear_fits(age_arr, off_arr, check_rate_change=False):
+    n_iters = age_arr.shape[0]
+    
+    if check_rate_change:
+        results_columns = ['m1', 'm2', 'breakpt', 'sumsq2', 'm', 'sumsq1']
+    else:
+        results_columns = ['m', 'sumsq1']
+
+    results_df = pd.DataFrame(index=n_iters, columns=results_columns,
+                              dtype='float')
+
+    for i in range(n_iters):
+        xd = age_arr[i,:]
+        yd = off_arr[i,:]
+
+        if check_rate_change==True:
+            results_df.ix[i, ['m1','m2','breakpt','sumsq2']] = piece_lin_opt(
+                                                                        xd, yd)
+        results_df.ix[i, ['m', 'sumsq1']] = lin_fit(xd, yd)
+
+    return results_df
+
+
+def log_likelihood(sum_sq, n):
     
     return -n / 2 * np.log(sum_sq)
 
 
-def BIC(log_like, n, p):
+def BIC(log_likelihood, n, p):
     
-    return log_like - ( 0.5 * p * np.log(n / 2 * np.pi))
+    return log_likelihood - ( 0.5 * p * np.log(n / 2 * np.pi))
