@@ -1,9 +1,7 @@
-import numpy as np 
-import numpy.ma as ma 
+import sys; sys.path.append('../slip_rate_tools/')
+#import numpy as np 
 import pandas as pd 
-from scipy.optimize import minimize 
 import matplotlib.pyplot as plt
-from scipy.stats import linregress
 import slip_rate_tools as srt
 
 '''
@@ -58,23 +56,35 @@ def run_linear_interp(offset_list, n_iters, zero_offset_age=0.,
     srt.check_unit_consistency(offset_list)
 
     n_pts = len(offset_list) + 1 # accounting for 0 offset
-    
+
+    print('sampling offset markers')
     age_arr, off_arr = srt.make_age_offset_arrays(offset_list, n_iters,
                                              check_increasing=check_increasing)
 
+    print('doing fits')
     results_df = srt.do_linear_fits(age_arr, off_arr, 
-                                    check_rate_change=check_rate_change)
+                                    check_rate_change=check_rate_change,
+                                    trim_results=True)
 
     results_df['log_like_1'] = srt.log_likelihood(results_df.sumsq1, n_pts)
 
     if check_rate_change==True:
-        results_df['log_like_2'] = srt.log_likelihood(results_df.sumsq2, n_pts)
+        num_1_odds = srt.rate_change_test(results_df, 4, print_res=True)
 
-        p1 = 1 # number of parameters for single linear fit
-        p2 = 3 # number of parameters for 2 part piecewise fit
-        results_df['bic_1'] = srt.BIC(results_df.log_like_1, n_pts, p1)
-        results_df['bic_2'] = srt.BIC(results_df.log_like_2, n_pts, p2)
 
+    elif check_rate_change==False:
+        print('\nbest fit slip rate results:')
+        print(results_df.m.describe())
+
+    return results_df
+
+
+if __name__ == '__main__':
+    res_df = run_linear_interp([T1, Qa, Qao], 1000, check_increasing=True, 
+                      check_rate_change=True)
+
+    #plt.figure()
+    #for i in res_df.index
 
 
 

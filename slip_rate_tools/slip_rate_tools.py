@@ -6,6 +6,7 @@ Created on Thu Aug 30 14:00:54 2012
 """
 
 import numpy as np
+import numpy.ma as ma 
 #import Splines
 from Splines import spline1d
 from scipy.interpolate import interp1d
@@ -258,10 +259,9 @@ def trim_distribution(sample, sample_min=None, sample_max=None):
     return sample
 
 
-def check_increasing(in_array):
+def check_monot_increasing(in_array):
     """Checks to see if array is monotonically increasing, returns bool value
     """
-
     dx = np.diff(in_array)
 
     return np.all(dx >= 0)
@@ -269,7 +269,7 @@ def check_increasing(in_array):
 
 def check_unit_consistency(offset_list):
     off_unit_list = [om.offset_units for om in offset_list]
-    age_unit_list = [om.age_units for om in age_list]
+    age_unit_list = [om.age_units for om in offset_list]
 
     for off_u in off_unit_list:
         if off_u != off_unit_list[0]:
@@ -317,8 +317,8 @@ def make_age_offset_arrays(offset_list, n, check_increasing=False,
         
             inc_bool = np.ones((age_array.shape[0]), dtype=int)
             for row in range(n):
-                age_inc = check_increasing(age_array[row,:])
-                off_inc = check_increasing(off_array[row,:])
+                age_inc = check_monot_increasing(age_array[row,:])
+                off_inc = check_monot_increasing(off_array[row,:])
                 
                 if not (age_inc and off_inc):
                     inc_bool[row] = 0
@@ -395,7 +395,8 @@ def lin_fit(x_data, y_data):
     return m, sum_sq_err
 
 
-def do_linear_fits(age_arr, off_arr, check_rate_change=False):
+def do_linear_fits(age_arr, off_arr, check_rate_change=False, 
+                   trim_results=True):
     n_iters = age_arr.shape[0]
     
     if check_rate_change:
@@ -403,17 +404,30 @@ def do_linear_fits(age_arr, off_arr, check_rate_change=False):
     else:
         results_columns = ['m', 'sumsq1']
 
-    results_df = pd.DataFrame(index=n_iters, columns=results_columns,
-                              dtype='float')
+    results_df = pd.DataFrame(index=np.arange(n_iters), 
+                              columns=results_columns, dtype='float')
 
     for i in range(n_iters):
         xd = age_arr[i,:]
         yd = off_arr[i,:]
 
+        results_df.ix[i, ['m', 'sumsq1']] = lin_fit(xd, yd)
+        
         if check_rate_change==True:
             results_df.ix[i, ['m1','m2','breakpt','sumsq2']] = piece_lin_opt(
                                                                         xd, yd)
-        results_df.ix[i, ['m', 'sumsq1']] = lin_fit(xd, yd)
+     
+    if check_rate_change==True:
+       if trim_results==True:
+           m1_75 = results_df.m1.describe()['75%']
+           m2_75 = results_df.m2.describe()['75%']
+
+           m1_max = 5 * m1_75
+           m2_max = 5 * m2_75
+
+           results_df = results_df[(results_df.m1 < m1_max)] 
+           results_df = results_df[(results_df.m2 < m2_max)] 
+
 
     return results_df
 
@@ -426,3 +440,46 @@ def log_likelihood(sum_sq, n):
 def BIC(log_likelihood, n, p):
     
     return log_likelihood - ( 0.5 * p * np.log(n / 2 * np.pi))
+
+
+def rate_change_test(results_df, n_pts, print_res=False):
+    results_df['log_like_2'] = log_likelihood(results_df.sumsq2, n_pts)
+    n_iters_out = results_df.shape[0]
+
+    p1 = 1 # number of parameters for single linear fit
+    p2 = 3 # number of parameters for 2 part piecewise fit
+    results_df['bic_1'] = BIC(results_df.log_like_1, n_pts, p1)
+    results_df['bic_2'] = BIC(results_df.log_like_2, n_pts, p2)
+
+    num_1_count = results_df[results_df.bic_1 > results_df.bic_2].shape[0]
+    num_2_count = n_iters_out - num_1_count
+    num_1_odds = num_1_count / n_iters_out
+    num_2_odds = num_2_count / n_iters_out
+    
+    if print_res==True:
+        if num_1_odds > num_2_odds:
+            print('1 line fits best.  {}/{} ({}% chance)'.format(num_1_count,
+                                                               n_iters_out,
+                                                               num_1_odds*100))
+            print('\nbest fit slip rate results:')
+            print(results_df.m.describe())
+
+
+        else:
+            print('2 lines fit best.  {}/{} ({}% chance)'.format(num_2_count,
+                                                               n_iters_out,
+                                                               num_2_odds*100))
+            print('\nbest fit slip rate results:')
+            print('rate 1 (younger):')
+            print(results_df.m1.describe())
+            print('rate change timing:')
+            print(results_df.breakpt.describe())
+            print('rate 2 (older):')
+            print(results_df.m2.describe())
+            print('rate_change:')
+            print((results_df.m2 - results_df.m1).describe())
+   
+    return num_1_odds
+
+
+
