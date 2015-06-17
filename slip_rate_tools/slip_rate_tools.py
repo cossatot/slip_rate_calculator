@@ -482,4 +482,85 @@ def rate_change_test(results_df, n_pts, print_res=False):
     return num_1_odds
 
 
+def linear_rate_interp(rate, run_time_max, sim_time_max, zero_offset_age=0.,
+                       num_pts=1000):
+    ''' Makes a history array of slip rates.  In this case, the slip
+    rate is a constant from zero_offset_age to run_time_max, and is
+    zero outside of those boundaries.  Returns a Pandas Series.
+    
+    Arguments:
+    rate (float): slip rate.
+    run_time_max (float): Maximum age of slip rate for this MC iteration,
+                          i.e. age of oldest offset feature. Times older
+                          than this will have zero slip rate.
+    sim_time_max (float): Maximum age of oldest feature in the whole MC
+                          simulation. This determines the length of the 
+                          array.
+    zero_offset_age (float): Youngest age of faulting.  Times younger than
+                             this time will have zero rate.
+    num_pts (int): Number of points in the array.
+    '''
+
+    times = np.linspace(zero_offset_age, sim_time_max, num_pts)
+    slip_rate_history = pd.Series(index=times, data=np.zeros(num_pts))
+
+    slip_rate_history.ix[zero_offset_age : run_time_max] = rate
+
+    return slip_rate_history
+
+
+def piecewise_rate_interp(rate1, rate2, breakpt, run_time_max, sim_time_max,
+                          zero_offset_age=0., num_pts=1000):
+
+
+
+    times = np.linspace(zero_offset_age, sim_time_max, num_pts)
+    slip_rate_history = pd.Series(index=times, data=np.zeros(num_pts))
+
+    slip_rate_history.ix[zero_offset_age : breakpt] = rate1
+    slip_rate_history.ix[breakpt : run_time_max] = rate2
+
+    return slip_rate_history
+
+
+def make_rate_hist_array(results_df, age_arr, n_segments=1, num_pts=1000,
+                         zero_offset_age=0., return_array=False,
+                         sim_time_max='mc_age_max'):
+
+    if sim_time_max == 'mc_age_max':
+        sim_time_max = np.max(age_arr)
+
+    times = np.linspace(zero_offset_age, sim_time_max, num_pts)
+
+    rate_hist_df = pd.DataFrame(columns=times, index=results_df.index)
+
+    if n_segments == 1:
+        for i in rate_hist_df.index:
+            rate = results_df.ix[i, 'm']
+            run_time_max = age_arr[i, -1]
+            rate_hist_df.ix[i, :] = linear_rate_interp(rate, run_time_max,
+                                                       sim_time_max,
+                                                       zero_offset_age,
+                                                       num_pts)
+    elif n_segments == 2:
+        for i in rate_hist_df.index:
+            rate1 = results_df.ix[i, 'm1']
+            rate2 = results_df.ix[i, 'm2']
+            breakpt = results_df.ix[i, 'breakpt'] 
+            run_time_max = age_arr[i, -1]
+            rate_hist_df.ix[i, :] = piecewise_rate_interp(rate1, rate2,
+                                                          breakpt, 
+                                                          run_time_max,
+                                                          sim_time_max,
+                                                          zero_offset_age,
+                                                          num_pts)
+    else:
+        raise Exception('Only 1 or 2 rates supported now.')
+    
+    return rate_hist_df if return_array == True else rate_hist_df.values
+
+
+def make_cum_hist_array(rate_hist_array):
+
+    return np.cumsum(rate_hist_array, axis=0)
 

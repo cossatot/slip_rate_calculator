@@ -76,12 +76,17 @@ def run_linear_interp(offset_list, n_iters, zero_offset_age=0.,
         print('\nbest fit slip rate results:')
         print(results_df.m.describe())
 
-    return results_df
+    return results_df, age_arr
 
 
 if __name__ == '__main__':
-    res_df = run_linear_interp([T1, Qa, Qao], 1000, check_increasing=True, 
-                      check_rate_change=True)
+    res_df, age_arr= run_linear_interp([T1, Qa, Qao], 500, 
+                                       check_increasing=True, 
+                                       check_rate_change=True)
+
+    rate_hist_df = srt.make_rate_hist_array(res_df, age_arr, n_segments=2)
+
+    cum_hist_df = srt.make_cum_hist_array(rate_hist_df)
 
     #plt.figure()
     #for i in res_df.index
