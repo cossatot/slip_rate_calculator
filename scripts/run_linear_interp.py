@@ -1,4 +1,7 @@
+import time
+t0 = time.time()
 import sys; sys.path.append('../slip_rate_tools/')
+
 #import numpy as np 
 import pandas as pd 
 import matplotlib.pyplot as plt
@@ -87,6 +90,9 @@ if __name__ == '__main__':
     rate_hist_df = srt.make_rate_hist_array(res_df, age_arr, n_segments=2)
 
     cum_hist_df = srt.make_cum_hist_array(rate_hist_df)
+
+    t1 = time.time()
+    print(t1-t0)
 
     #plt.figure()
     #for i in res_df.index
