@@ -404,18 +404,25 @@ def do_linear_fits(age_arr, off_arr, check_rate_change=False,
     else:
         results_columns = ['m', 'sumsq1']
 
-    results_df = pd.DataFrame(index=np.arange(n_iters), 
-                              columns=results_columns, dtype='float')
+    results_arr = np.zeros( (n_iters, len(results_columns) ) )
 
-    for i in range(n_iters):
-        xd = age_arr[i,:]
-        yd = off_arr[i,:]
+    if check_rate_change==False:
+        for i in range(n_iters):
+            xd = age_arr[i,:]
+            yd = off_arr[i,:]
 
-        results_df.ix[i, ['m', 'sumsq1']] = lin_fit(xd, yd)
-        
-        if check_rate_change==True:
-            results_df.ix[i, ['m1','m2','breakpt','sumsq2']] = piece_lin_opt(
-                                                                        xd, yd)
+            results_arr[i,:] = lin_fit(xd, yd)
+
+    if check_rate_change==True:
+        for i in range(n_iters):
+            xd = age_arr[i,:]
+            yd = off_arr[i,:]
+
+            results_arr[i, 4:6] = lin_fit(xd, yd)
+
+            results_arr[i, 0:4] = piece_lin_opt(xd, yd)
+
+    results_df = pd.DataFrame(results_arr, columns=results_columns)
      
     if check_rate_change==True:
        if trim_results==True:
@@ -440,6 +447,11 @@ def log_likelihood(sum_sq, n):
 def BIC(log_likelihood, n, p):
     
     return log_likelihood - ( 0.5 * p * np.log(n / 2 * np.pi))
+
+
+def find_nearest_index(array, value):
+    idx = (np.abs(array-value)).argmin()
+    return idx
 
 
 def rate_change_test(results_df, n_pts, print_res=False):
@@ -512,13 +524,17 @@ def linear_rate_interp(rate, run_time_max, sim_time_max, zero_offset_age=0.,
 def piecewise_rate_interp(rate1, rate2, breakpt, run_time_max, sim_time_max,
                           zero_offset_age=0., num_pts=1000):
 
-
-
     times = np.linspace(zero_offset_age, sim_time_max, num_pts)
-    slip_rate_history = pd.Series(index=times, data=np.zeros(num_pts))
+    slip_rate_history = np.zeros(num_pts)
+    
+    
+    zero_offset_idx = find_nearest_index(times, zero_offset_age)
+    run_time_max_idx = find_nearest_index(times, run_time_max)
+    breakpt_idx = find_nearest_index(times, breakpt)
+    
+    slip_rate_history[zero_offset_idx : breakpt_idx] = rate1
+    slip_rate_history[breakpt_idx : run_time_max_idx] = rate2
 
-    slip_rate_history.ix[zero_offset_age : breakpt] = rate1
-    slip_rate_history.ix[breakpt : run_time_max] = rate2
 
     return slip_rate_history
 
@@ -533,6 +549,7 @@ def make_rate_hist_array(results_df, age_arr, n_segments=1, num_pts=1000,
     times = np.linspace(zero_offset_age, sim_time_max, num_pts)
 
     rate_hist_df = pd.DataFrame(columns=times, index=results_df.index)
+    rate_hist_ar = np.zeros((len(results_df.index), num_pts))
 
     if n_segments == 1:
         for i in rate_hist_df.index:
@@ -543,12 +560,14 @@ def make_rate_hist_array(results_df, age_arr, n_segments=1, num_pts=1000,
                                                        zero_offset_age,
                                                        num_pts)
     elif n_segments == 2:
-        for i in rate_hist_df.index:
-            rate1 = results_df.ix[i, 'm1']
-            rate2 = results_df.ix[i, 'm2']
-            breakpt = results_df.ix[i, 'breakpt'] 
-            run_time_max = age_arr[i, -1]
-            rate_hist_df.ix[i, :] = piecewise_rate_interp(rate1, rate2,
+        for i, row in enumerate(results_df.index):
+            rate1 = results_df.ix[row, 'm1']
+            rate2 = results_df.ix[row, 'm2']
+            breakpt = results_df.ix[row, 'breakpt'] 
+            run_time_max = age_arr[row, -1]
+            #rate_hist_df.ix[i, :] = piecewise_rate_interp(rate1, rate2,
+            #rate_hist_df.loc[i, :] = piecewise_rate_interp(rate1, rate2,
+            rate_hist_ar[i, :] = piecewise_rate_interp(rate1, rate2,
                                                           breakpt, 
                                                           run_time_max,
                                                           sim_time_max,
@@ -557,8 +576,8 @@ def make_rate_hist_array(results_df, age_arr, n_segments=1, num_pts=1000,
     else:
         raise Exception('Only 1 or 2 rates supported now.')
     
-    return rate_hist_df if return_array == True else rate_hist_df.values
-
+    #return rate_hist_df if return_array == True else rate_hist_df.values
+    return rate_hist_ar
 
 def make_cum_hist_array(rate_hist_array):
 
