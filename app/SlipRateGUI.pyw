@@ -4,17 +4,38 @@ import os
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
+from IPython.qt.console.rich_ipython_widget import RichIPythonWidget
+from IPython.qt.inprocess import QtInProcessKernelManager
+
+
+import slipRateWindow
+
 sys.path.append('../slip_rate_tools/')
 import slip_rate_tools as srt
 
-class SlipRateWindow(QMainWindow, slipRateWindow.Ui_SlipRateWindow):
+
+class EmbedIPython(RichIPythonWidget):
+
+    def __init__(self, **kwarg):
+        super(RichIPythonWidget, self).__init__()
+        self.kernel_manager = QtInProcessKernelManager()
+        self.kernel_manager.start_kernel()
+        self.kernel = self.kernel_manager.kernel
+        self.kernel.gui = 'qt4'
+        self.kernel.shell.push(kwarg)
+        self.kernel_client = self.kernel_manager.client()
+        self.kernel_client.start_channels()
+
+
+
+class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
     def __init__(self, parent=None):
         super(SlipRateWindow, self).__init__(parent)
 
         self.setupUi(self)
         self.setWindowTitle('Slip Rate Calculator')
 
-        self.textBrowser.append("Welcome to the Slip Rate Calculator!")
+        #self.textBrowser.append("Welcome to the Slip Rate Calculator!")
 
 
         # main running buttons
@@ -27,6 +48,11 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_SlipRateWindow):
         self.exportButton.clicked.connect(self.export_config)
 
 
+        # IPython console
+        self.console = EmbedIPython(testing=123)
+        self.verticalLayout.addWidget(self.console)
+
+
 
     # main running functions
     def run_slip_history(self):
@@ -34,8 +60,9 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_SlipRateWindow):
         # start 
         # run (need to have some process)
         # report output (connect process to textBrowser)
+        self.console.execute("pwd")
         
-        pass
+        #pass
 
     def cancel_run(self):
         # cancel run process
