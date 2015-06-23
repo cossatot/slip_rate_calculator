@@ -84,7 +84,7 @@ def run_linear_interp(offset_list, n_iters, zero_offset_age=0.,
 
 if __name__ == '__main__':
     res_df, age_arr= run_linear_interp([T1, Qa, Qao], 500, 
-                                       check_increasing=True, 
+                                       force_increasing=True, 
                                        check_rate_change=True)
 
     rate_hist_df = srt.make_rate_hist_array(res_df, age_arr, n_segments=2)

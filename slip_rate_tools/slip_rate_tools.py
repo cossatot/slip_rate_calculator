@@ -8,7 +8,7 @@ Created on Thu Aug 30 14:00:54 2012
 import numpy as np
 import numpy.ma as ma 
 #import Splines
-from Splines import spline1d
+#from Splines import spline1d
 from scipy.interpolate import interp1d
 from scipy.optimize import minimize
 import pandas as pd
@@ -72,7 +72,7 @@ class OffsetMarker:
         offsets: list of possible offset distances for the given marker.
             If offset_type = normal, offsets = [mean, sd]
         offset_probs: list of probabilities of corresponding offset distances
-        offset_dist_type: offset prob. distribution (normal, uniform, arbitrary)
+        offset_dist_type: offset prob distribution (normal, uniform, arbitrary)
         ages: list of possible ages for the given marker
         age_probs: list of probabilities of corresponding ages
         age_dist_type: age prob. distribution (normal, uniform, arbitrary)
@@ -297,7 +297,7 @@ def tspline_interpolate():
     pass
 
 
-def make_age_offset_arrays(offset_list, n, check_increasing=False, 
+def make_age_offset_arrays(offset_list, n, force_increasing=False, 
                            zero_offset_age=0.):
     
     #TODO: use random seeding
@@ -311,7 +311,7 @@ def make_age_offset_arrays(offset_list, n, check_increasing=False,
         col = i+1
         age_array[:,col], off_array[:,col] = off_mark.sample(n)
         
-    if check_increasing == True:
+    if force_increasing == True:
         
         def make_inc_bool(age_array, off_array, n):
         
@@ -336,7 +336,7 @@ def make_age_offset_arrays(offset_list, n, check_increasing=False,
             
             next_age_array, next_off_array = make_age_offset_arrays(
                                                 offset_list, n,
-                                                check_increasing=False,
+                                                force_increasing=False,
                                                 zero_offset_age=zero_offset_age)
             
             next_inc_bool = make_inc_bool(next_age_array, next_off_array, n)
@@ -395,25 +395,29 @@ def lin_fit(x_data, y_data):
     return m, sum_sq_err
 
 
-def do_linear_fits(age_arr, off_arr, check_rate_change=False, 
-                   trim_results=True):
+def do_linear_fits(age_arr, off_arr, fit_type=None, trim_results=True,
+                   n_linear_pieces=None):
+
     n_iters = age_arr.shape[0]
     
-    if check_rate_change:
-        results_columns = ['m1', 'm2', 'breakpt', 'sumsq2', 'm', 'sumsq1']
-    else:
+    if fit_type == 'piecewise':
+        if n_linear_pieces == 2:
+            results_columns = ['m1', 'm2', 'breakpt', 'sumsq2', 'm', 'sumsq1']
+        else:
+            raise Exception('Only 2 piece piecewise-linear fits supported')
+    elif fit_type == 'linear':
         results_columns = ['m', 'sumsq1']
 
     results_arr = np.zeros( (n_iters, len(results_columns) ) )
 
-    if check_rate_change==False:
+    if fit_type == 'linear':
         for i in range(n_iters):
             xd = age_arr[i,:]
             yd = off_arr[i,:]
 
             results_arr[i,:] = lin_fit(xd, yd)
 
-    if check_rate_change==True:
+    elif fit_type == 'piecewise':
         for i in range(n_iters):
             xd = age_arr[i,:]
             yd = off_arr[i,:]
@@ -424,8 +428,9 @@ def do_linear_fits(age_arr, off_arr, check_rate_change=False,
 
     results_df = pd.DataFrame(results_arr, columns=results_columns)
      
-    if check_rate_change==True:
+    if fit_type == 'piecewise':
        if trim_results==True:
+           # option will be set in the GUI
            m1_75 = results_df.m1.describe()['75%']
            m2_75 = results_df.m2.describe()['75%']
 
@@ -454,14 +459,14 @@ def find_nearest_index(array, value):
     return idx
 
 
-def rate_change_test(results_df, n_pts, print_res=False):
-    results_df['log_like_2'] = log_likelihood(results_df.sumsq2, n_pts)
+def rate_change_test(results_df, n_offsets, print_res=False):
+    results_df['log_like_2'] = log_likelihood(results_df.sumsq2, n_offsets)
     n_iters_out = results_df.shape[0]
 
     p1 = 1 # number of parameters for single linear fit
     p2 = 3 # number of parameters for 2 part piecewise fit
-    results_df['bic_1'] = BIC(results_df.log_like_1, n_pts, p1)
-    results_df['bic_2'] = BIC(results_df.log_like_2, n_pts, p2)
+    results_df['bic_1'] = BIC(results_df.log_like_1, n_offsets, p1)
+    results_df['bic_2'] = BIC(results_df.log_like_2, n_offsets, p2)
 
     num_1_count = results_df[results_df.bic_1 > results_df.bic_2].shape[0]
     num_2_count = n_iters_out - num_1_count
@@ -582,4 +587,32 @@ def make_rate_hist_array(results_df, age_arr, n_segments=1, num_pts=1000,
 def make_cum_hist_array(rate_hist_array):
 
     return np.cumsum(rate_hist_array, axis=0)
+
+
+def run_interp_from_gui(offset_list, run_config_dict):
+
+    rc = run_config_dict
+
+    check_unit_consistency(offset_list)
+
+    n_offsets = len(offset_list) + 1
+
+    print('sampling offset markers')
+    age_arr, off_arr = make_age_offset_arrays(offset_list, rc['n_iters'],
+                                       force_increasing=rc['force_increasing'])
+
+    print('doing fits')
+    if rc['fit_type'] in ['linear', 'piecewise']:
+        results_df = do_linear_fits(age_arr, off_arr, fit_type=rc['fit_type'],
+                                    n_linear_pieces=rc['n_linear_pieces'])
+    else:
+        raise Exception('fit type not implemented yet')
+
+    results_df['log_like_1'] = log_likelihood(results_df.sumsq1, n_offsets)
+
+    if rc['fit_type'] == 'piecewise':
+        one_rate_odds = rate_change_test(results_df, n_offsets, print_res=True)
+
+
+
 
