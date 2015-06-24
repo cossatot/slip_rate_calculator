@@ -85,10 +85,28 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
         self.importButton.clicked.connect(self.import_config)
         self.exportButton.clicked.connect(self.export_config)
 
-
         # IPython console
         self.console = EmbedIPython(srt=srt, plt=plt)
         self.verticalLayout.addWidget(self.console)
+
+
+        # offset marker table
+        self.tabledata = test_table_data
+
+        self.tablemodel = OffsetMarkerTableModel(self.tabledata, 
+                                                 offset_table_header)
+        self.offsetMarkerTableView.setModel(self.tablemodel)
+        self.offsetMarkerTableView.horizontalHeader()
+
+        self.addOffsetMarkerButton.clicked.connect(self.add_offset_marker_row)
+
+
+    def add_offset_marker_row(self):
+        self.tabledata.append(['name', 0., 'age_type', 0., 'age_err_type'])
+        self.offsetMarkerTableView.model().layoutChanged.emit()
+
+        print(self.tabledata)
+
 
 
 
@@ -104,7 +122,9 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
         self.console.kernel.shell.push({'rc':run_config_dict, 
                                         'offset_list':offset_list})
 
-        self.console.execute('srt.run_interp_from_gui(offset_list, rc)')
+        self.console.execute(
+                'res_df = srt.run_interp_from_gui(offset_list, rc)')
+        #self.console.kernel.shell.push({'off_table':self.tabledata})
 
         #pass
 
@@ -180,6 +200,62 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
         
         pass
 
+
+class OffsetMarkerTableModel(QAbstractTableModel):
+    '''docs'''
+    def __init__(self, data_in, header_in, parent=None):
+        QAbstractTableModel.__init__(self, parent)
+        self.arraydata = data_in
+        self.header = header_in
+
+
+    def data(self, index, role):
+        if not index.isValid():
+            return None
+        elif role != Qt.DisplayRole:
+            return None
+        return self.arraydata[index.row()][index.column()] 
+
+    def rowCount(self, parent):
+        return len(self.arraydata)
+
+    def columnCount(self, parent):
+        if len(self.arraydata) > 0:
+            return len(self.arraydata[0])
+        else:
+            return 0
+
+    def headerData(self, col, orientation, role):
+        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
+            return self.header[col]
+
+    def setData(self, index, value, role=Qt.EditRole):
+        if role == Qt.EditRole:
+            self.arraydata[index.row()][index.column()] = value
+            return True
+        else:
+            return False
+
+    def flags(self, index):
+        return Qt.ItemIsEditable | Qt.ItemIsEnabled | Qt.ItemIsSelectable
+
+
+
+
+
+
+
+
+
+
+offset_table_header = ['Name', 'Age', 'Age_Type', 'Age_Err', 'Age_Err_Type']
+                      # 'Age_Units', 'Offset', 'Offset_Type', 'Offset_Err', 
+                      # 'Offset_Err_Type', 'Offset_Units']
+
+
+test_table_data = [['T1', 24., 'mean', 8., 'sd'],
+                   ['Qa', 50., 'mean', 20., 'sd'],
+                   ['Qao', 100., 'mean', 32., 'sd']]
 
 
 app = QApplication(sys.argv)

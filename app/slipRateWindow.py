@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'mainwindow.ui'
 #
-# Created: Mon Jun 22 21:45:30 2015
+# Created: Tue Jun 23 09:38:45 2015
 #      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -29,9 +29,9 @@ class Ui_MainWindow(object):
         MainWindow.resize(670, 520)
         self.centralWidget = QtGui.QWidget(MainWindow)
         self.centralWidget.setObjectName(_fromUtf8("centralWidget"))
-        self.tableView = QtGui.QTableView(self.centralWidget)
-        self.tableView.setGeometry(QtCore.QRect(10, 51, 261, 181))
-        self.tableView.setObjectName(_fromUtf8("tableView"))
+        self.offsetMarkerTableView = QtGui.QTableView(self.centralWidget)
+        self.offsetMarkerTableView.setGeometry(QtCore.QRect(10, 51, 261, 181))
+        self.offsetMarkerTableView.setObjectName(_fromUtf8("offsetMarkerTableView"))
         self.label = QtGui.QLabel(self.centralWidget)
         self.label.setGeometry(QtCore.QRect(10, 10, 81, 16))
         self.label.setObjectName(_fromUtf8("label"))

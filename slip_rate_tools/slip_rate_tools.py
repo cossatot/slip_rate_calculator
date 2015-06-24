@@ -610,8 +610,13 @@ def run_interp_from_gui(offset_list, run_config_dict):
 
     results_df['log_like_1'] = log_likelihood(results_df.sumsq1, n_offsets)
 
-    if rc['fit_type'] == 'piecewise':
+    if rc['fit_type']  == 'linear':
+        print(results_df.m.describe())
+
+    elif rc['fit_type'] == 'piecewise':
         one_rate_odds = rate_change_test(results_df, n_offsets, print_res=True)
+
+    return results_df
 
 
 
