@@ -87,7 +87,7 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
 
         # IPython console
         self.console = EmbedIPython(srt=srt, plt=plt)
-        self.verticalLayout.addWidget(self.console)
+        self.vlayout_for_ipython.addWidget(self.console)
 
 
         # offset marker table
