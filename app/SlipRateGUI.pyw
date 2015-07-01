@@ -14,7 +14,12 @@ sys.path.append('../slip_rate_tools/')
 import slip_rate_tools as srt
 
 import pandas as pd
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
+import numpy as np
+
+from matplotlib.backends import qt_compat
+from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 
 
 '''
@@ -48,7 +53,7 @@ Qao = srt.OffsetMarker(age_mean=qao_age['mean'], age_sd=qao_age['sd'],
 
 offset_list = [T1, Qa, Qao]
 
-
+plt=''
 
 
 
@@ -123,22 +128,41 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
                                         'offset_list':offset_list})
 
         self.console.execute(
-                'res_df = srt.run_interp_from_gui(offset_list, rc)')
+            'res_df, age_arr, offset_arr = srt.run_interp_from_gui('
+            + 'offset_list, rc)')
+
         #self.console.kernel.shell.push({'off_table':self.tabledata})
+
+        #rcc = self.console.kernel.shell.pull('rc')
 
         #pass
 
     def cancel_run(self):
         # cancel run process
 
-        self.console.execute("\x03\r\n")
-
+        #self.console.execute("\x03\r\n")
+        #self.console.interrupt_kernel()
+        self.console.kernel_client.stop_channels()
         # pass
 
     def plot_results(self):
         # maybe plot some stuff, maybe open up a new window that
         # has lots of options before plotting
-        pass
+
+        #plot_cmd = 'srt.plot_histograms_from_gui(rc, res_df)'
+        plot_cmd = ('srt.plot_slip_histories_from_gui(res_df, age_arr, rc,'
+                                                    +'offset_arr, offset_list,'
+                                                    +'show_samples=True)' )
+                                                     
+
+        self.console.execute(plot_cmd)
+
+        #self.console.kernel.shell.p
+
+        #plt.hist(np.random.random(7000), bins=50)
+        #plt.show()
+
+        #pass
 
 
     # Config functions
@@ -256,6 +280,7 @@ offset_table_header = ['Name', 'Age', 'Age_Type', 'Age_Err', 'Age_Err_Type']
 test_table_data = [['T1', 24., 'mean', 8., 'sd'],
                    ['Qa', 50., 'mean', 20., 'sd'],
                    ['Qao', 100., 'mean', 32., 'sd']]
+
 
 
 app = QApplication(sys.argv)

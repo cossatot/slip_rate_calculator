@@ -5,6 +5,7 @@ Created on Thu Aug 30 14:00:54 2012
 @author: Richard
 """
 
+import time
 import numpy as np
 import numpy.ma as ma 
 #import Splines
@@ -12,6 +13,17 @@ import numpy.ma as ma
 from scipy.interpolate import interp1d
 from scipy.optimize import minimize
 import pandas as pd
+#import matplotlib.pyplot as plt
+
+try:  #consider moving this to separate file
+    from matplotlib.backends import qt_compat
+    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+    from matplotlib.figure import Figure
+    from matplotlib import collections as mc
+    from PyQt4 import QtGui, QtCore
+
+except:
+    pass
 
 # TODO: Use Bayes to refine offset estimates given slip rate constraints
 
@@ -372,7 +384,7 @@ def piece_lin_opt(x_data, y_data):
     
     
     res = minimize(piece_lin_objective, init_guesses, (x_data, y_data),
-                   method="L-BFGS-B", bounds=bounds)
+                   method="TNC", bounds=bounds)
     
     sum_sq_err = piece_lin_objective(res.x, x_data, y_data)
     
@@ -590,6 +602,7 @@ def make_cum_hist_array(rate_hist_array):
 
 
 def run_interp_from_gui(offset_list, run_config_dict):
+    t0 = time.time()
 
     rc = run_config_dict
 
@@ -615,9 +628,152 @@ def run_interp_from_gui(offset_list, run_config_dict):
 
     elif rc['fit_type'] == 'piecewise':
         one_rate_odds = rate_change_test(results_df, n_offsets, print_res=True)
+    
+    print("\ndone in {:.2f} seconds".format(time.time() - t0))
 
-    return results_df
+    return results_df, age_arr, off_arr
 
 
+def trim_age_offset_arrays(res_df, age_arr, off_arr=None):
+    """
+    Trims age and offset arrays based on retained values from the results_df.
+    """
+    good_inds = res_df.index.values
+
+    age_arr_trim = age_arr[good_inds, :]
+
+    if off_arr is not None:
+        off_arr_trim = off_arr[good_inds, :]
+
+        return age_arr_trim, off_arr_trim
+
+    else:
+        return age_arr_trim
 
 
+def cumulative_offsets(prev_age, new_rate, new_age):
+    return prev_age + (new_age - prev_age) * new_rate
+
+
+def get_line_pts_from_results(res_df, age_array, n_pieces=1):
+    
+    if age_array.shape[0] != res_df.shape[0]:
+        age_array = trim_age_offset_arrays(res_df, age_array)
+
+    n_pts = n_pieces + 1
+    n_rows = res_df.shape[0]
+
+    x_array = np.zeros((res_df.shape[0], n_pts))
+    y_array = x_array.copy()
+    
+    if n_pieces == 1:
+        x_array[:,0] = age_array[:,0]
+        x_array[:,1] = age_array.max(axis=1)
+
+        y_array[:,0] = 0.
+        y_array[:,1] = age_array.max(axis=1) * res_df.m
+
+    elif n_pieces == 2:
+        x_array[:,0] = age_array[:,0]
+        x_array[:,1] = res_df.breakpt.values
+        x_array[:,2] = age_array.max(axis=1)
+
+        y_array[:,0] = 0.
+        y_array[:,1] = res_df.breakpt.values * res_df.m1
+        y_array[:,2] = cumulative_offsets(y_array[:,1], res_df.m1, 
+                                          x_array[:,2])
+    else:
+        raise Exception('only 1 or 2 piece lines currently implemented.')
+
+    line_pts = [tuple(zip(x_array[i,:], y_array[i,:])) for i in range(n_rows)]
+
+    return line_pts
+
+
+def plot_slip_histories_from_gui(res_df, age_arr, run_config_dict, 
+                                 offset_arr=None, offset_list=None,
+                                 show_data=False, show_samples=False):
+
+    if run_config_dict['fit_type'] == 'linear':
+        n_pieces = 1
+
+    elif run_config_dict['fit_type'] == 'piecewise':
+        n_offsets = age_arr.shape[1]
+        one_rate_odds = rate_change_test(res_df, n_offsets, print_res=False)
+
+        if one_rate_odds >= 0.5:
+            n_pieces = 1
+        elif one_rate_odds < 0.5:
+            # TODO: Use best value if n_linear_pieces > 2, when implemented
+            n_pieces = run_config_dict['n_linear_pieces']
+    
+    elif run_config_dict['fit_type'] == 'cubic':
+        raise Exception('cubic spline plotting not implemented yet')
+
+    else:
+        raise Exception('fit type needs to be linear, piecewise, or cubic')
+
+    line_pts = get_line_pts_from_results(res_df, age_arr, n_pieces)
+
+    line_coll = mc.LineCollection(line_pts, linewidths=0.1, colors='k')
+
+    canvas = MplCanvas()
+    ax = canvas.axes
+
+    if show_data == True:
+        ax.errorbar()
+
+    if show_samples == True:
+
+        n_iters = run_config_dict['n_iters']
+
+        if n_iters < 10:
+            sym = 'o'
+        elif 10 <= n_iters < 100:
+            sym = '.'
+        elif 100 <= n_iters:
+            sym = ','
+
+        ax.plot(age_arr.ravel(), offset_arr.ravel(), sym)
+    
+    ax.add_collection(line_coll)
+    ax.autoscale()
+
+    canvas.show()
+
+
+def plot_histograms_from_gui(run_config_dict, results_df):
+    rc = run_config_dict
+
+
+    canvas = MplCanvas()
+
+
+    if rc['fit_type'] == 'linear':
+        canvas.axes.hist(results_df.m, bins=50)
+
+    elif rc['fit_type'] == 'piecewise':
+        pass
+
+    canvas.show()
+    #return
+
+
+class MplCanvas(FigureCanvas):
+    """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = fig.add_subplot(111)
+        # We want the axes cleared every time plot() is called
+        self.axes.hold(False)
+
+        #self.compute_initial_figure()
+
+        #
+        FigureCanvas.__init__(self, fig)
+        self.setParent(parent)
+
+        #FigureCanvas.setSizePolicy(self,
+        #                           QtGui.QSizePolicy.Expanding,
+        #                           QtGui.QSizePolicy.Expanding)
+        FigureCanvas.updateGeometry(self)
