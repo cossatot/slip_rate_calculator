@@ -39,7 +39,7 @@ t1_age = {'mean': 24., 'sd':8.}
 qa_age = {'mean': 50., 'sd':20.}
 qao_age = {'mean':100., 'sd':32.}
 
-#qao_age['mean'] += 200
+qao_age['mean'] += 200
 
 T1 = srt.OffsetMarker(age_mean=t1_age['mean'], age_sd=t1_age['sd'],
                       offset_vals=t1.offset_m, offset_probs=t1.rel_prob)
@@ -175,7 +175,7 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
         run_config['n_iters'] = int( self.nItersLineEdit.text() )
         run_config['zero_offset_age'] = float( self.zeroOffsetLineEdit.text() )
         run_config['random_seed'] = self.randSeedCheckBox.isChecked()
-        run_config['random_seed_value'] = float( self.randSeedLineEdit.text() )
+        run_config['random_seed_value']=int(float(self.randSeedLineEdit.text()))
         run_config['force_increasing'] = self.forceIncrCheckBox.isChecked()
         run_config['slip_reversals'] = self.slipRevCheckBox.isChecked()
         run_config['fit_type'] = self.get_fit_type()

@@ -11,7 +11,7 @@ import numpy.ma as ma
 #import Splines
 #from Splines import spline1d
 from scipy.interpolate import interp1d
-from scipy.optimize import minimize
+from scipy.optimize import minimize, curve_fit, leastsq
 import pandas as pd
 #import matplotlib.pyplot as plt
 
@@ -26,6 +26,10 @@ except:
     pass
 
 # TODO: Use Bayes to refine offset estimates given slip rate constraints
+
+def tspline_interpolate():
+    pass
+
 
 def fit_history_spline(age_array, offset_array):
 
@@ -305,17 +309,17 @@ def get_log_pts(p_min, p_max, n_pts=50, base=np.e):
     return pts_array
 
 
-def tspline_interpolate():
-    pass
-
-
 def make_age_offset_arrays(offset_list, n, force_increasing=False, 
-                           zero_offset_age=0.):
+                           zero_offset_age=0., seed=False, seed_value=None,
+                           sample_chunks=1):
+
+    # TODO: implement sample chunking (using n samples per marker per fit)
     
-    #TODO: use random seeding
+    if seed == True:
+        np.random.seed(seed_value)
     
-    age_array = np.zeros((n, len(offset_list)+1))
-    off_array = np.zeros((n, len(offset_list)+1))
+    age_array = np.zeros((n, len(offset_list)+1 * sample_chunks))
+    off_array = np.zeros((n, len(offset_list)+1 * sample_chunks))
     
     age_array[:,0] = zero_offset_age
     
@@ -397,6 +401,74 @@ def piece_lin_opt(x_data, y_data):
     return slope1, slope2, breakpoint, sum_sq_err
 
 
+def piecewise_linear(x, breakpt, m1, m2):
+    return np.piecewise(x, [x < breakpt], [lambda x: m1 * x,
+                             lambda x: m2 * x + (m1 * breakpt) - m2 * breakpt])
+
+
+def piecewise_linear_objective(params, x_data, y_data):
+
+    return ( (y_data - piecewise_linear(x_data, *params))**2).sum()   
+
+
+def penalized_piecewise_linear_objective(params, x_data, y_data, weight=0.1):
+    
+    breakpt, m1, m2 = params
+    
+    resids = np.array( (y_data - piecewise_linear(x_data, *params)) )
+    
+    rate_change_penalization = np.sum(np.abs(resids)) * np.abs(m1 - m2) * weight
+    
+    new_resids = np.append(resids, rate_change_penalization)
+
+    return new_resids
+
+
+def piecewise_linear_opt(x_data, y_data):
+
+    breakpt_guess = np.median(x_data)
+    m1_guess = x_data.max() / y_data.max()
+    m2_guess = x_data.max() / y_data.max()
+    init_vals = [breakpt_guess, m1_guess, m2_guess]
+
+    try:
+        params, cov_matrix = curve_fit(piecewise_linear, x_data, y_data, 
+                                       init_vals)
+    except RuntimeError:
+        results = minimize(piecewise_linear_objective, init_vals,
+                           (x_data, y_data), method='SLSQP')
+        #print('slsqp')
+        params = results.x
+
+    # params = 
+
+    breakpt, m1, m2 = params
+
+    errs = y_data - piecewise_linear(x_data, breakpt, m1, m2)
+
+    sum_sq_err = np.sum(errs**2)
+
+    return m1, m2, breakpt, sum_sq_err
+
+
+def penalized_piecewise_linear_opt(x_data, y_data, weight=0.3):
+    breakpt_guess = np.median(x_data)
+    m1_guess = x_data.max() / y_data.max()
+    m2_guess = x_data.max() / y_data.max()
+    init_vals = (breakpt_guess, m1_guess, m2_guess)
+    
+    params, success = leastsq(penalized_piecewise_linear_objective, init_vals, 
+                              args=(x_data, y_data, weight))
+
+    breakpt, m1, m2 = params
+    
+    errs = y_data - piecewise_linear(x_data, breakpt, m1, m2)
+
+    sum_sq_err = np.sum(errs**2)
+
+    return m1, m2, breakpt, sum_sq_err
+
+
 def lin_fit(x_data, y_data):
     x = x_data[:,np.newaxis]
     m, _, _, _ = np.linalg.lstsq(x, y_data)
@@ -436,13 +508,19 @@ def do_linear_fits(age_arr, off_arr, fit_type=None, trim_results=True,
 
             results_arr[i, 4:6] = lin_fit(xd, yd)
 
-            results_arr[i, 0:4] = piece_lin_opt(xd, yd)
+            #results_arr[i, 0:4] = piece_lin_opt(xd, yd)
+            #results_arr[i, 0:4] = piecewise_linear_opt(xd, yd)
+            results_arr[i, 0:4] = penalized_piecewise_linear_opt(xd, yd)
 
     results_df = pd.DataFrame(results_arr, columns=results_columns)
      
     if fit_type == 'piecewise':
        if trim_results==True:
            # option will be set in the GUI
+           
+           results_df = results_df[(results_df.breakpt > age_arr[:,0])
+                                   &(results_df.breakpt < age_arr[:,-1])]
+           
            m1_75 = results_df.m1.describe()['75%']
            m2_75 = results_df.m2.describe()['75%']
 
@@ -612,7 +690,9 @@ def run_interp_from_gui(offset_list, run_config_dict):
 
     print('sampling offset markers')
     age_arr, off_arr = make_age_offset_arrays(offset_list, rc['n_iters'],
-                                       force_increasing=rc['force_increasing'])
+                                       force_increasing=rc['force_increasing'],
+                                       seed=rc['random_seed'],
+                                       seed_value=rc['random_seed_value'])
 
     print('doing fits')
     if rc['fit_type'] in ['linear', 'piecewise']:
@@ -651,8 +731,8 @@ def trim_age_offset_arrays(res_df, age_arr, off_arr=None):
         return age_arr_trim
 
 
-def cumulative_offsets(prev_age, new_rate, new_age):
-    return prev_age + (new_age - prev_age) * new_rate
+def cumulative_offsets(prev_age, prev_rate, new_age, new_rate):
+    return prev_age * prev_rate + (new_age - prev_age) * new_rate
 
 
 def get_line_pts_from_results(res_df, age_array, n_pieces=1):
@@ -680,8 +760,8 @@ def get_line_pts_from_results(res_df, age_array, n_pieces=1):
 
         y_array[:,0] = 0.
         y_array[:,1] = res_df.breakpt.values * res_df.m1
-        y_array[:,2] = cumulative_offsets(y_array[:,1], res_df.m1, 
-                                          x_array[:,2])
+        y_array[:,2] = cumulative_offsets(x_array[:,1], res_df.m1, 
+                                          x_array[:,2], res_df.m2)
     else:
         raise Exception('only 1 or 2 piece lines currently implemented.')
 
