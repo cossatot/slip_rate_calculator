@@ -104,13 +104,19 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
         self.offsetMarkerTableView.horizontalHeader()
 
         self.addOffsetMarkerButton.clicked.connect(self.add_offset_marker_row)
+        
 
+    def push(self, **kwarg):
+        '''convenience function for pushing objects to the console'''
+        self.console.kernel.shell.push(kwarg)
 
     def add_offset_marker_row(self):
         self.tabledata.append(['name', 0., 'age_type', 0., 'age_err_type'])
         self.offsetMarkerTableView.model().layoutChanged.emit()
 
         print(self.tabledata)
+        print(type(self.tabledata))
+        self.push({'tabledata':self.tabledata})
 
 
 
@@ -132,8 +138,6 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
             + 'offset_list, rc)')
 
         #self.console.kernel.shell.push({'off_table':self.tabledata})
-
-        #rcc = self.console.kernel.shell.pull('rc')
 
         #pass
 
