@@ -100,22 +100,29 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
 
         self.tablemodel = OffsetMarkerTableModel(self.tabledata, 
                                                  offset_table_header)
+
         self.offsetMarkerTableView.setModel(self.tablemodel)
         self.offsetMarkerTableView.horizontalHeader()
 
         self.addOffsetMarkerButton.clicked.connect(self.add_offset_marker_row)
+
+        self.offsetMarkerTableView.model().layoutChanged.connect(
+                                                         self.push_table_data)
+        self.push({'table_header': offset_table_header})
         
 
-    def push(self, **kwarg):
+    def push(self, obj):
         '''convenience function for pushing objects to the console'''
-        self.console.kernel.shell.push(kwarg)
+        self.console.kernel.shell.push(obj)
 
     def add_offset_marker_row(self):
-        self.tabledata.append(['name', 0., 'age_type', 0., 'age_err_type'])
+        self.tabledata.append(
+            ['name', 0., 'age_type', 0., 'age_err_type', 'age_unit', 
+                     0., 'offset_type', 0., 'offset_err_type', 'offset_unit'])
+
         self.offsetMarkerTableView.model().layoutChanged.emit()
 
-        print(self.tabledata)
-        print(type(self.tabledata))
+    def push_table_data(self):
         self.push({'tabledata':self.tabledata})
 
 
@@ -131,7 +138,11 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
         
         run_config_dict = self.concat_config_options()
         self.console.kernel.shell.push({'rc':run_config_dict, 
-                                        'offset_list':offset_list})
+                                        #'offset_list':offset_list,
+                                        'tabledata':self.tabledata})
+        
+        self.console.execute(
+            'offset_list = srt.offset_list_from_gui(tabledata, table_header)')
 
         self.console.execute(
             'res_df, age_arr, offset_arr = srt.run_interp_from_gui('
@@ -270,20 +281,17 @@ class OffsetMarkerTableModel(QAbstractTableModel):
 
 
 
+offset_table_header = ['Name', 'Age', 'Age_Type', 'Age_Err', 'Age_Err_Type',
+                       'Age_Units', 'Offset', 'Offset_Type', 'Offset_Err', 
+                       'Offset_Err_Type', 'Offset_Units']
 
 
-
-
-
-
-offset_table_header = ['Name', 'Age', 'Age_Type', 'Age_Err', 'Age_Err_Type']
-                      # 'Age_Units', 'Offset', 'Offset_Type', 'Offset_Err', 
-                      # 'Offset_Err_Type', 'Offset_Units']
-
-
-test_table_data = [['T1', 24., 'mean', 8., 'sd'],
-                   ['Qa', 50., 'mean', 20., 'sd'],
-                   ['Qao', 100., 'mean', 32., 'sd']]
+test_table_data = [['T1', 24., 'mean', 8., 'sd', 'ka', 
+                    list(t1.offset_m), 'list', list(t1.rel_prob), 'probs', 'm'],
+                   ['Qa', 50., 'mean', 20., 'sd', 'ka', 
+                    75., 'mean', 20., 'sd', 'm'],
+                   ['Qao', 100., 'mean', 32., 'sd', 'ka',
+                    132., 'mean', 33., 'sd', 'ka']]
 
 
 

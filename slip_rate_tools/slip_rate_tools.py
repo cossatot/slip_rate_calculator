@@ -6,12 +6,14 @@ Created on Thu Aug 30 14:00:54 2012
 """
 
 import time
+from collections import OrderedDict
 import numpy as np
 import numpy.ma as ma 
 #import Splines
 #from Splines import spline1d
 from scipy.interpolate import interp1d
 from scipy.optimize import minimize, curve_fit, leastsq
+from scipy.stats import gaussian_kde  # do this for some lists
 import pandas as pd
 #import matplotlib.pyplot as plt
 
@@ -26,6 +28,7 @@ except:
     pass
 
 # TODO: Use Bayes to refine offset estimates given slip rate constraints
+
 
 def tspline_interpolate():
     pass
@@ -95,6 +98,7 @@ class OffsetMarker:
         source: Source for information (e.g., what article, field campaign)
     
     """
+    # TODO: Need to make a random.choice setting for large arrays of vals
 
     def __init__(self, offsets=np.array([]), offset_probs=None,
                  offset_vals=None, offset_mean=None, offset_median=None,
@@ -197,7 +201,7 @@ class OffsetMarker:
         else:
             age_min = 0.
 
-        age_sample = sample_bounded_normal(self.age_mean, self.age_sd, n,
+        age_sample = sample_from_bounded_normal(self.age_mean, self.age_sd, n,
                                            age_min, self.age_max)
 
         return age_sample
@@ -246,7 +250,164 @@ class OffsetMarker:
         return age_sample, offset_sample
 
 
-def sample_bounded_normal(mean, sd, n, sample_min=None, sample_max=None):
+def offset_list_from_gui(tabledata, table_header):
+    offsets_d = offset_markers_from_gui(tabledata, table_header)
+
+    return list(offsets_d.values())
+
+    
+def offset_markers_from_gui(tabledata, table_header):
+    offsets_d = OrderedDict()
+
+    for row in tabledata:
+        off_mark_d = offset_marker_dict_from_row(row, table_header)
+        offsets_d[off_mark_d['Name']] = offset_marker_from_dict(off_mark_d)
+
+    return offsets_d
+
+
+def offset_marker_dict_from_row(row, table_header):
+    # header_table should be passed from gui
+    off_mark_d = OrderedDict()
+
+    for i, key in enumerate(table_header):
+        off_mark_d[key] = row[i]
+
+    return off_mark_d
+
+
+def offset_marker_from_dict(off_row_d):
+    or_d = off_row_d
+
+    args = {'offset_units': or_d['Offset_Units'],
+            'age_units': or_d['Age_Units']}
+
+    # get offset arguments
+    if or_d['Offset_Type'] == 'mean':
+        if not np.isscalar(or_d['Offset']):
+            raise Exception('Mean Offset has to be a scalar!')
+        args['offset_mean'] = or_d['Offset']
+
+    elif or_d['Offset_Type'] == 'median':
+        if not np.isscalar(or_d['Offset']):
+            raise Exception('Median Offset has to be a scalar!')
+        args['offset_median'] = or_d['Offset']
+
+    elif or_d['Offset_Type'] == 'list':
+        if len(or_d['Offset']) < 2:
+            raise Exception('List Offsets have to be longer than 1!')
+        args['offset_vals'] = or_d['Offset']
+    
+    else:
+        raise Exception('Offset_Type must be mean, median or list!')
+
+    # get offset err arguments
+    # TODO: More consistency checking between arg types
+    if or_d['Offset_Err_Type'] == 'sd':
+        if not np.isscalar(or_d['Offset_Err']):
+            raise Exception('sd Offset_Err must be a scalar!')
+        args['offset_sd'] = or_d['Offset_Err']
+
+    elif or_d['Offset_Err_Type'] == 'mad':
+        if not np.isscalar(or_d['Offset_Err']):
+            raise Exception('mad Offset_Err must be a scalar!')
+        args['offset_mad'] = or_d['Offset_Err']
+
+    elif or_d['Offset_Err_Type'] == 'minmax':
+        if not np.isscalar(or_d['Offset_Err']):
+            raise Exception('minmax Offset_Err must be a scalar!')
+        if not np.isscalar(or_d['Offset']):
+            raise Exception('Mean Offset has to be a scalar!')
+        args['offset_min'] = or_d['Offset'] - or_d['Offset_Err']
+        args['offset_max'] = or_d['Offset'] + or_d['Offset_Err']
+        args['offset_sd'] = None # just to make sure the class inits right
+   
+    elif or_d['Offset_Err_Type'] == 'probs':
+        if len(or_d['Offset_Err']) < 2:
+            raise Exception('probs Offset_Err have to be longer than 1!')
+        args['offset_probs'] = or_d['Offset_Err']
+        # check to make sure offset vals are set too?
+
+    elif or_d['Offset_Err_Type'] == 'kde':
+        if len(or_d['Offset_Err']) < 2:
+            raise Exception('kde Offset_Err have to be longer than 1!')
+        args['offset_probs'] = kde(or_d['Offset'])
+
+    else:
+        raise Exception('Offset_Err_Type must be sd, mad, minmax, probs, '
+                        +'or kde!')
+
+    # get age arguments
+    if or_d['Age_Type'] == 'mean':
+        if not np.isscalar(or_d['Age']):
+            raise Exception('Mean Age has to be a scalar!')
+        args['age_mean'] = or_d['Age']
+
+    elif or_d['Age_Type'] == 'median':
+        if not np.isscalar(or_d['Age']):
+            raise Exception('Median Age has to be a scalar!')
+        args['age_median'] = or_d['Age']
+
+    elif or_d['Age_Type'] == 'list':
+        if len(or_d['Age']) < 2:
+            raise Exception('List Ages have to be longer than 1!')
+        args['age_vals'] = or_d['Age']
+    
+    else:
+        raise Exception('Age_Type must be mean, median or list!')
+
+    # get age err arguments
+    # TODO: More consistency checking between arg types
+    if or_d['Age_Err_Type'] == 'sd':
+        if not np.isscalar(or_d['Age_Err']):
+            raise Exception('sd Age_Err must be a scalar!')
+        args['age_sd'] = or_d['Age_Err']
+
+    elif or_d['Age_Err_Type'] == 'mad':
+        if not np.isscalar(or_d['Age_Err']):
+            raise Exception('mad Age_Err must be a scalar!')
+        args['age_mad'] = or_d['Age_Err']
+
+    elif or_d['Age_Err_Type'] == 'minmax':
+        if not np.isscalar(or_d['Age_Err']):
+            raise Exception('minmax Age_Err must be a scalar!')
+        if not np.isscalar(or_d['Age']):
+            raise Exception('Mean Age has to be a scalar!')
+        args['age_min'] = or_d['Age'] - or_d['Age_Err']
+        args['age_max'] = or_d['Age'] + or_d['Age_Err']
+        args['age_sd'] = None # just to make sure the class inits right
+   
+    elif or_d['Age_Err_Type'] == 'probs':
+        if len(or_d['Age_Err']):
+            raise Exception('probs Age_Err have to be longer than 1!')
+        args['age_probs'] = or_d['Age_Err']
+        # check to make sure age vals are set too?
+
+    elif or_d['Age_Err_Type'] == 'kde':
+        if len(or_d['Age_Err']) < 2:
+            raise Exception('kde Age_Err have to be longer than 1!')
+        args['age_probs'] = kde(or_d['Age'])
+        
+    else:
+        raise Exception('Age_Err_Type must be sd, mad, minmax, probs, '
+                        +'or kde!')
+
+    return OffsetMarker(**args)
+
+
+def kde(vals):
+    # not sure how to do this yet
+    # need to match input length?  or just resample? pass resampling to class?
+    # will need to re-do vals too!
+    
+    raise Exception('Not Implemented Yet')
+
+
+######
+### stats functions
+#####
+
+def sample_from_bounded_normal(mean, sd, n, sample_min=None, sample_max=None):
 
     sample = np.random.normal(mean, sd, n)
     sample = trim_distribution(sample, sample_min=sample_min, 
