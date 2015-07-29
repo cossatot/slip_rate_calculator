@@ -16,6 +16,8 @@ import slip_rate_tools as srt
 import pandas as pd
 #import matplotlib.pyplot as plt
 import numpy as np
+from collections import OrderedDict
+import json
 
 from matplotlib.backends import qt_compat
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
@@ -168,16 +170,9 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
         plot_cmd = ('srt.plot_slip_histories_from_gui(res_df, age_arr, rc,'
                                                     +'offset_arr, offset_list,'
                                                     +'show_samples=True)' )
-                                                     
-
         self.console.execute(plot_cmd)
 
-        #self.console.kernel.shell.p
-
-        #plt.hist(np.random.random(7000), bins=50)
-        #plt.show()
-
-        #pass
+        return
 
 
     # Config functions
@@ -185,7 +180,7 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
 
     # TODO: Need to check to see how failures (empty boxes, etc.) affect
     # running of functions. Where to handle the failures? print custom errors?
-        run_config = {}
+        run_config = OrderedDict()
 
         run_config['n_iters'] = int( self.nItersLineEdit.text() )
         run_config['zero_offset_age'] = float( self.zeroOffsetLineEdit.text() )
@@ -209,35 +204,103 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
 
         return fit_type
 
-    def concat_offset_markers(self):
-        # don't really know how to deal with this right now
-        pass
-
     def concat_all_variables(self):
-        all_vars = {}
+        all_vars = OrderedDict()
 
-        for key, val in concat_config_options():
-            all_vars[key] = val
-
-        for key, val in concat_offset_markers():
-            all_vars[key] = val
+        all_vars['run_config'] = self.concat_config_options()
+        all_vars['offset_markers'] = self.tabledata_to_dict()
 
         return all_vars
 
+
+    def dict_to_config(self, input_dict):
+        if 'run_config' in input_dict.keys():
+            dic = input_dict['run_config']
+        else:
+            dic = input_dict
+
+        self.nItersLineEdit.setText( str(dic['n_iters']))
+        self.zeroOffsetLineEdit.setText( str(dic['zero_offset_age']))
+        self.randSeedCheckBox.setChecked( dic['random_seed'])
+        self.randSeedLineEdit.setText( str(dic['random_seed_value']))
+        self.forceIncrCheckBox.setChecked( dic['force_increasing'])
+        self.slipRevCheckBox.setChecked( dic['slip_reversals'])
+        if dic['fit_type'] == 'linear':
+            self.linearFitRadio.setChecked(True)
+        elif dic['fit_type'] == 'piecewise':
+            self.piecewiseFitRadio.setChecked(True)
+        elif dic['fit_type'] == 'cubic':
+            self.cubicFitRadio.setChecked(True)
+        #self.nPiecesSpin
+        return
+
     def import_config(self):
-        # open file browser, select file
-        # try reading as csv, json
-        # output run_config dict
-        pass
+        infile = QFileDialog.getOpenFileName(self, filter='*.json')
+
+        fp = open(infile, 'r')
+        
+        all_vars = json.load(fp, object_pairs_hook=OrderedDict)
+        
+        self.dict_to_tabledata(all_vars)
+        self.dict_to_config(all_vars)
+        
+        return
+
 
     def export_config(self):
-        # open file browser
-        # select either csv or json
-        # write to appropriate file, don't allow others
         
-        all_vars = concat_all_variables()
+        all_vars = self.concat_all_variables()
+
+        output_name = QFileDialog.getSaveFileName(self, 
+                                                  caption='Save File As',
+                                                  filter='*.json')
+        with open(output_name, 'w+') as f:
+            json.dump(all_vars, f, indent=2)
         
-        pass
+        return
+
+
+    def tabledata_to_dict(self):
+
+        offset_marker_d = OrderedDict()
+
+        for row in self.tabledata:
+            name = row[0]
+
+            offset_marker_d[name] = srt.offset_marker_dict_from_row(row[1:],
+                                                    offset_table_header[1:])
+        return offset_marker_d
+
+    
+    def dict_to_tabledata(self, input_dict):
+
+        offset_list = []
+       
+        if 'offset_markers' in input_dict.keys():
+            dic = input_dict['offset_markers']
+
+        else:
+            dic = input_dict
+
+        for key in dic:
+            row_list = [key]
+
+            for head in offset_table_header[1:]:
+                row_list.append(dic[key][head])
+
+            offset_list.append(row_list)
+        
+        self.tabledata = offset_list
+        
+        self.tablemodel = OffsetMarkerTableModel(self.tabledata, 
+                                                 offset_table_header)
+        
+        self.offsetMarkerTableView.setModel(self.tablemodel)
+
+        return
+
+
+
 
 
 class OffsetMarkerTableModel(QAbstractTableModel):
@@ -291,7 +354,7 @@ test_table_data = [['T1', 24., 'mean', 8., 'sd', 'ka',
                    ['Qa', 50., 'mean', 20., 'sd', 'ka', 
                     75., 'mean', 20., 'sd', 'm'],
                    ['Qao', 100., 'mean', 32., 'sd', 'ka',
-                    132., 'mean', 33., 'sd', 'ka']]
+                    132., 'mean', 33., 'sd', 'm']]
 
 
 
