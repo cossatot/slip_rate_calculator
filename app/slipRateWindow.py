@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'mainwindow.ui'
+# Form implementation generated from reading ui file '../gui/mainwindow.ui'
 #
-# Created: Sun Jul 26 22:31:06 2015
+# Created: Fri Jul 31 10:31:32 2015
 #      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -97,7 +97,7 @@ class Ui_MainWindow(object):
         self.nPiecesSpinBox = QtGui.QSpinBox(self.run_config_box)
         self.nPiecesSpinBox.setMinimumSize(QtCore.QSize(0, 20))
         self.nPiecesSpinBox.setMinimum(2)
-        self.nPiecesSpinBox.setMaximum(2)
+        self.nPiecesSpinBox.setMaximum(10)
         self.nPiecesSpinBox.setProperty("value", 2)
         self.nPiecesSpinBox.setObjectName(_fromUtf8("nPiecesSpinBox"))
         self.horizontalLayout_2.addWidget(self.nPiecesSpinBox)

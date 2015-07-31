@@ -212,7 +212,6 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
 
         return all_vars
 
-
     def dict_to_config(self, input_dict):
         if 'run_config' in input_dict.keys():
             dic = input_dict['run_config']
@@ -246,7 +245,6 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
         
         return
 
-
     def export_config(self):
         
         all_vars = self.concat_all_variables()
@@ -259,7 +257,6 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
         
         return
 
-
     def tabledata_to_dict(self):
 
         offset_marker_d = OrderedDict()
@@ -271,7 +268,6 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
                                                     offset_table_header[1:])
         return offset_marker_d
 
-    
     def dict_to_tabledata(self, input_dict):
 
         offset_list = []

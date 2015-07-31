@@ -7,6 +7,7 @@ Created on Thu Aug 30 14:00:54 2012
 
 import time
 from collections import OrderedDict
+import itertools
 import numpy as np
 import numpy.ma as ma 
 #import Splines
@@ -28,6 +29,9 @@ except:
     pass
 
 # TODO: Use Bayes to refine offset estimates given slip rate constraints
+
+def flatten(nested_iterator):
+    return list(itertools.chain(*nested_iterator))
 
 
 def tspline_interpolate():
@@ -403,10 +407,6 @@ def kde(vals):
     raise Exception('Not Implemented Yet')
 
 
-######
-### stats functions
-#####
-
 def sample_from_bounded_normal(mean, sd, n, sample_min=None, sample_max=None):
 
     sample = np.random.normal(mean, sd, n)
@@ -527,6 +527,10 @@ def make_age_offset_arrays(offset_list, n, force_increasing=False,
     return age_array[:n,:], off_array[:n,:]
 
 
+####
+# Piecewise linear fitting.  Multiple methods here, pick your poison.
+###
+
 def piece_lin_objective(params, x_data, y_data): 
     '''docs
 
@@ -565,6 +569,55 @@ def piece_lin_opt(x_data, y_data):
 def piecewise_linear(x, breakpt, m1, m2):
     return np.piecewise(x, [x < breakpt], [lambda x: m1 * x,
                              lambda x: m2 * x + (m1 * breakpt) - m2 * breakpt])
+
+
+def fit_piecewise_linear_w_breakpts(x_data, y_data, breakpts):
+    '''
+    Modified from an email by Josef Perktold on the 
+    StatsModels mailing list.
+    '''
+    
+    # make breakpts into list, so we can prepend 0
+    if hasattr(breakpts, 'shape'):
+        breakpts = breakpts.tolist()
+    else:
+        breakpts = list(breakpts)
+    breakpts.insert(0,0) # slope over entire array
+    
+    # make exog array
+    A = np.column_stack([np.maximum(0, x_data - knot) for knot in breakpts])
+
+    # returned slopes are in difference from last slope where slope1 is from 0
+    # don't know how to make exog array otherwise
+    slopes, sum_sq_err = np.linalg.lstsq(A, y_data)[0:2]
+
+    return np.cumsum(slopes), sum_sq_err # cumsum makes each slope the real one
+
+
+def piecewise_linear_breakpt_search(x_data, y_data, n_pieces=2, n_iters=20):
+    '''
+    docs
+    '''
+    n_breaks = n_pieces - 1
+    breakpt_samples = np.random.uniform(0., x_data.max(), (n_iters, n_breaks))
+    breakpt_samples = np.sort(breakpt_samples, axis=1)
+    slopes = {}
+
+    # make this huge so failures won't be selected as min
+    sum_sq_errs = np.ones(n_iters) * np.inf
+
+    for i, breakpt in enumerate(breakpt_samples):
+        try:
+            slopes[i], sum_sq_errs[i] = fit_piecewise_linear_w_breakpts(x_data,
+                                                                        y_data,
+                                                                       breakpt)
+        except ValueError: # returned when least_sqs problem ill-conditioned
+            pass
+
+    min_i = np.argmin(sum_sq_errs)
+
+    return flatten([slopes[min_i], breakpt_samples[min_i], 
+                    [sum_sq_errs[min_i]]])
 
 
 def piecewise_linear_objective(params, x_data, y_data):
@@ -629,6 +682,10 @@ def penalized_piecewise_linear_opt(x_data, y_data, weight=0.3):
 
     return m1, m2, breakpt, sum_sq_err
 
+####
+# Other fitting stuff
+####
+
 
 def lin_fit(x_data, y_data):
     x = x_data[:,np.newaxis]
@@ -640,19 +697,24 @@ def lin_fit(x_data, y_data):
     return m, sum_sq_err
 
 
+def make_linear_results_columns(fit_type=None, n_linear_pieces=None): 
+
+    # TODO: fix for arbitrary breakpts
+
+    results_columns = ['m', 'sumsq1']
+    
+    if fit_type == 'piecewise':
+        m_cols = ['m{}'.format(num + 1) for num in range(n_linear_pieces)]
+        results_columns = flatten([m_cols, ['breakpt', 'sumsq2'], 
+                                   results_columns])
+    return results_columns
+
+
 def do_linear_fits(age_arr, off_arr, fit_type=None, trim_results=True,
                    n_linear_pieces=None):
 
     n_iters = age_arr.shape[0]
-    
-    if fit_type == 'piecewise':
-        if n_linear_pieces == 2:
-            results_columns = ['m1', 'm2', 'breakpt', 'sumsq2', 'm', 'sumsq1']
-        else:
-            raise Exception('Only 2 piece piecewise-linear fits supported')
-    elif fit_type == 'linear':
-        results_columns = ['m', 'sumsq1']
-
+    results_columns = make_linear_results_columns(fit_type, n_linear_pieces)
     results_arr = np.zeros( (n_iters, len(results_columns) ) )
 
     if fit_type == 'linear':
@@ -672,6 +734,9 @@ def do_linear_fits(age_arr, off_arr, fit_type=None, trim_results=True,
             #results_arr[i, 0:4] = piece_lin_opt(xd, yd)
             #results_arr[i, 0:4] = piecewise_linear_opt(xd, yd)
             results_arr[i, 0:4] = penalized_piecewise_linear_opt(xd, yd)
+            
+            #results_arr[i, 0:4] = piecewise_linear_breakpt_search(xd, yd,
+            #                                          n_pieces=n_linear_pieces)
 
     results_df = pd.DataFrame(results_arr, columns=results_columns)
      

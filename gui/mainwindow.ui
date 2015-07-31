@@ -186,7 +186,7 @@
             <number>2</number>
            </property>
            <property name="maximum">
-            <number>2</number>
+            <number>10</number>
            </property>
            <property name="value">
             <number>2</number>
@@ -357,14 +357,7 @@
         </layout>
        </item>
       </layout>
-      <zorder>fit_type_label</zorder>
-      <zorder>cancelButton</zorder>
-      <zorder>piecewiseFitRadio</zorder>
-      <zorder>horizontalSpacer_2</zorder>
-      <zorder>horizontalSpacer_4</zorder>
-      <zorder>horizontalSpacer_5</zorder>
       <zorder></zorder>
-      <zorder>horizontalSpacer_3</zorder>
      </widget>
     </item>
     <item>
