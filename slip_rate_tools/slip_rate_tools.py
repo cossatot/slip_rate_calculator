@@ -1,10 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Aug 30 14:00:54 2012
-
-@author: Richard
-"""
-
 import time
 from collections import OrderedDict
 import itertools
@@ -18,15 +12,6 @@ from scipy.stats import gaussian_kde  # do this for some lists
 import pandas as pd
 #import matplotlib.pyplot as plt
 
-try:  #consider moving this to separate file
-    from matplotlib.backends import qt_compat
-    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-    from matplotlib.figure import Figure
-    from matplotlib import collections as mc
-    from PyQt4 import QtGui, QtCore
-
-except:
-    pass
 
 # TODO: Use Bayes to refine offset estimates given slip rate constraints
 
@@ -594,7 +579,9 @@ def fit_piecewise_linear_w_breakpts(x_data, y_data, breakpts):
     return np.cumsum(slopes), sum_sq_err # cumsum makes each slope the real one
 
 
-def piecewise_linear_breakpt_search(x_data, y_data, n_pieces=2, n_iters=20):
+def piecewise_linear_breakpt_search(x_data, y_data, n_pieces=2, n_iters=20,
+                                    penalize_rate_changes=False, 
+                                    weight_pen=0.1):
     '''
     docs
     '''
@@ -605,16 +592,25 @@ def piecewise_linear_breakpt_search(x_data, y_data, n_pieces=2, n_iters=20):
 
     # make this huge so failures won't be selected as min
     sum_sq_errs = np.ones(n_iters) * np.inf
+    if penalize_rate_changes == True:
+        pen_sum_sq = sum_sq_errs.copy()
 
     for i, breakpt in enumerate(breakpt_samples):
         try:
             slopes[i], sum_sq_errs[i] = fit_piecewise_linear_w_breakpts(x_data,
                                                                         y_data,
                                                                        breakpt)
+            if penalize_rate_changes == True:
+                pen_sum_sq[i] = sum_sq_errs[i] * rate_change_penalization(
+                                                                    slopes[i], 
+                                                                    weight_pen)
+
         except ValueError: # returned when least_sqs problem ill-conditioned
             pass
-
-    min_i = np.argmin(sum_sq_errs)
+    if penalize_rate_changes == True:
+        min_i = np.argmin(pen_sum_sq)
+    else:
+        min_i = np.argmin(sum_sq_errs)
 
     return flatten([slopes[min_i], breakpt_samples[min_i], 
                     [sum_sq_errs[min_i]]])
@@ -622,7 +618,11 @@ def piecewise_linear_breakpt_search(x_data, y_data, n_pieces=2, n_iters=20):
 
 def piecewise_linear_objective(params, x_data, y_data):
 
-    return ( (y_data - piecewise_linear(x_data, *params))**2).sum()   
+    return ( (y_data - piecewise_linear(x_data, *params))**2).sum()
+
+
+def rate_change_penalization(slopes, weight_pen):
+    return np.abs(np.diff(slopes)) * weight_pen
 
 
 def penalized_piecewise_linear_objective(params, x_data, y_data, weight=0.1):
@@ -733,10 +733,11 @@ def do_linear_fits(age_arr, off_arr, fit_type=None, trim_results=True,
 
             #results_arr[i, 0:4] = piece_lin_opt(xd, yd)
             #results_arr[i, 0:4] = piecewise_linear_opt(xd, yd)
-            results_arr[i, 0:4] = penalized_piecewise_linear_opt(xd, yd)
-            
-            #results_arr[i, 0:4] = piecewise_linear_breakpt_search(xd, yd,
-            #                                          n_pieces=n_linear_pieces)
+            #results_arr[i, 0:4] = penalized_piecewise_linear_opt(xd, yd)
+            results_arr[i, 0:4] = piecewise_linear_breakpt_search(xd, yd,
+                                                n_pieces=n_linear_pieces,
+                                                penalize_rate_changes=True,
+                                                weight_pen=0.2)
 
     results_df = pd.DataFrame(results_arr, columns=results_columns)
      
@@ -744,19 +745,33 @@ def do_linear_fits(age_arr, off_arr, fit_type=None, trim_results=True,
        if trim_results==True:
            # option will be set in the GUI
            
-           results_df = results_df[(results_df.breakpt > age_arr[:,0])
-                                   &(results_df.breakpt < age_arr[:,-1])]
-           
-           m1_75 = results_df.m1.describe()['75%']
-           m2_75 = results_df.m2.describe()['75%']
+            results_df = trim_results_df(results_df, age_arr)
 
-           m1_max = 5 * m1_75
-           m2_max = 5 * m2_75
-
-           results_df = results_df[(results_df.m1 < m1_max)] 
-           results_df = results_df[(results_df.m2 < m2_max)] 
+    return results_df
 
 
+def trim_results_df(results_df, age_arr, trim_mag=5):
+
+    results_df = results_df[(results_df.breakpt > age_arr[:,0])
+                            &(results_df.breakpt < age_arr[:,-1])]
+    
+    m1_75 = results_df.m1.describe()['75%']
+    m2_75 = results_df.m2.describe()['75%']
+    m1_25 = results_df.m1.describe()['25%']
+    m2_25 = results_df.m2.describe()['25%']
+
+    m1_inter_quart_range = m1_75 - m1_25
+    m2_inter_quart_range = m2_75 - m2_25
+
+
+    m1_range = trim_mag * m1_inter_quart_range
+    m2_range = trim_mag * m2_inter_quart_range
+
+    results_df = results_df[(np.abs(results_df.m1 - results_df.m1.median())
+                             < m1_range)]
+
+    results_df = results_df[(np.abs(results_df.m2 - results_df.m2.median())
+                             < m2_range)]
     return results_df
 
 
@@ -788,6 +803,11 @@ def rate_change_test(results_df, n_offsets, print_res=False):
     num_2_count = n_iters_out - num_1_count
     num_1_odds = num_1_count / n_iters_out
     num_2_odds = num_2_count / n_iters_out
+
+    if num_1_odds > num_2_odds:
+        n_pieces_best = 1
+    else:
+        n_pieces_best = 2
     
     if print_res==True:
         if num_1_odds > num_2_odds:
@@ -796,7 +816,6 @@ def rate_change_test(results_df, n_offsets, print_res=False):
                                                                num_1_odds*100))
             print('\nbest fit slip rate results:')
             print(results_df.m.describe())
-
 
         else:
             print('2 lines fit best.  {}/{} ({}% chance)'.format(num_2_count,
@@ -812,7 +831,7 @@ def rate_change_test(results_df, n_offsets, print_res=False):
             print('rate_change:')
             print((results_df.m2 - results_df.m1).describe())
    
-    return num_1_odds
+    return n_pieces_best
 
 
 def linear_rate_interp(rate, run_time_max, sim_time_max, zero_offset_age=0.,
@@ -886,15 +905,12 @@ def make_rate_hist_array(results_df, age_arr, n_segments=1, num_pts=1000,
             rate2 = results_df.ix[row, 'm2']
             breakpt = results_df.ix[row, 'breakpt'] 
             run_time_max = age_arr[row, -1]
-            #rate_hist_df.ix[i, :] = piecewise_rate_interp(rate1, rate2,
-            #rate_hist_df.loc[i, :] = piecewise_rate_interp(rate1, rate2,
             rate_hist_ar[i, :] = piecewise_rate_interp(rate1, rate2,
-                                                          breakpt, 
-                                                          run_time_max,
-                                                          sim_time_max,
-                                                          zero_offset_age,
-                                                          num_pts)
-    else:
+                                                       breakpt, run_time_max,
+                                                       sim_time_max,
+                                                       zero_offset_age,
+                                                       num_pts) 
+    else: 
         raise Exception('Only 1 or 2 rates supported now.')
     
     #return rate_hist_df if return_array == True else rate_hist_df.values
@@ -931,13 +947,14 @@ def run_interp_from_gui(offset_list, run_config_dict):
 
     if rc['fit_type']  == 'linear':
         print(results_df.m.describe())
+        n_pieces_best = 1
 
     elif rc['fit_type'] == 'piecewise':
-        one_rate_odds = rate_change_test(results_df, n_offsets, print_res=True)
+        n_pieces_best = rate_change_test(results_df, n_offsets, print_res=True)
     
     print("\ndone in {:.2f} seconds".format(time.time() - t0))
 
-    return results_df, age_arr, off_arr
+    return results_df, age_arr, off_arr, n_pieces_best
 
 
 def trim_age_offset_arrays(res_df, age_arr, off_arr=None):
@@ -961,125 +978,4 @@ def cumulative_offsets(prev_age, prev_rate, new_age, new_rate):
     return prev_age * prev_rate + (new_age - prev_age) * new_rate
 
 
-def get_line_pts_from_results(res_df, age_array, n_pieces=1):
-    
-    if age_array.shape[0] != res_df.shape[0]:
-        age_array = trim_age_offset_arrays(res_df, age_array)
 
-    n_pts = n_pieces + 1
-    n_rows = res_df.shape[0]
-
-    x_array = np.zeros((res_df.shape[0], n_pts))
-    y_array = x_array.copy()
-    
-    if n_pieces == 1:
-        x_array[:,0] = age_array[:,0]
-        x_array[:,1] = age_array.max(axis=1)
-
-        y_array[:,0] = 0.
-        y_array[:,1] = age_array.max(axis=1) * res_df.m
-
-    elif n_pieces == 2:
-        x_array[:,0] = age_array[:,0]
-        x_array[:,1] = res_df.breakpt.values
-        x_array[:,2] = age_array.max(axis=1)
-
-        y_array[:,0] = 0.
-        y_array[:,1] = res_df.breakpt.values * res_df.m1
-        y_array[:,2] = cumulative_offsets(x_array[:,1], res_df.m1, 
-                                          x_array[:,2], res_df.m2)
-    else:
-        raise Exception('only 1 or 2 piece lines currently implemented.')
-
-    line_pts = [tuple(zip(x_array[i,:], y_array[i,:])) for i in range(n_rows)]
-
-    return line_pts
-
-
-def plot_slip_histories_from_gui(res_df, age_arr, run_config_dict, 
-                                 offset_arr=None, offset_list=None,
-                                 show_data=False, show_samples=False):
-
-    if run_config_dict['fit_type'] == 'linear':
-        n_pieces = 1
-
-    elif run_config_dict['fit_type'] == 'piecewise':
-        n_offsets = age_arr.shape[1]
-        one_rate_odds = rate_change_test(res_df, n_offsets, print_res=False)
-
-        if one_rate_odds >= 0.5:
-            n_pieces = 1
-        elif one_rate_odds < 0.5:
-            # TODO: Use best value if n_linear_pieces > 2, when implemented
-            n_pieces = run_config_dict['n_linear_pieces']
-    
-    elif run_config_dict['fit_type'] == 'cubic':
-        raise Exception('cubic spline plotting not implemented yet')
-
-    else:
-        raise Exception('fit type needs to be linear, piecewise, or cubic')
-
-    line_pts = get_line_pts_from_results(res_df, age_arr, n_pieces)
-
-    line_coll = mc.LineCollection(line_pts, linewidths=0.1, colors='k')
-
-    canvas = MplCanvas()
-    ax = canvas.axes
-
-    if show_data == True:
-        ax.errorbar()
-
-    if show_samples == True:
-
-        n_iters = run_config_dict['n_iters']
-
-        if n_iters < 10:
-            sym = 'o'
-        elif 10 <= n_iters < 100:
-            sym = '.'
-        elif 100 <= n_iters:
-            sym = ','
-
-        ax.plot(age_arr.ravel(), offset_arr.ravel(), sym)
-    
-    ax.add_collection(line_coll)
-    ax.autoscale()
-
-    canvas.show()
-
-
-def plot_histograms_from_gui(run_config_dict, results_df):
-    rc = run_config_dict
-
-
-    canvas = MplCanvas()
-
-
-    if rc['fit_type'] == 'linear':
-        canvas.axes.hist(results_df.m, bins=50)
-
-    elif rc['fit_type'] == 'piecewise':
-        pass
-
-    canvas.show()
-    #return
-
-
-class MplCanvas(FigureCanvas):
-    """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = fig.add_subplot(111)
-        # We want the axes cleared every time plot() is called
-        self.axes.hold(False)
-
-        #self.compute_initial_figure()
-
-        #
-        FigureCanvas.__init__(self, fig)
-        self.setParent(parent)
-
-        #FigureCanvas.setSizePolicy(self,
-        #                           QtGui.QSizePolicy.Expanding,
-        #                           QtGui.QSizePolicy.Expanding)
-        FigureCanvas.updateGeometry(self)

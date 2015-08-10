@@ -19,9 +19,11 @@ import numpy as np
 from collections import OrderedDict
 import json
 
-from matplotlib.backends import qt_compat
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
+#from matplotlib.backends import qt_compat
+#from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+#from matplotlib.figure import Figure
+
+import qt_plots as qtp
 
 
 '''
@@ -93,7 +95,7 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
         self.exportButton.clicked.connect(self.export_config)
 
         # IPython console
-        self.console = EmbedIPython(srt=srt, plt=plt)
+        self.console = EmbedIPython(srt=srt, plt=plt, qtp=qtp)
         self.vlayout_for_ipython.addWidget(self.console)
 
 
@@ -147,8 +149,8 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
             'offset_list = srt.offset_list_from_gui(tabledata, table_header)')
 
         self.console.execute(
-            'res_df, age_arr, offset_arr = srt.run_interp_from_gui('
-            + 'offset_list, rc)')
+            'res_df, age_arr, offset_arr, n_pieces_best = '
+            + 'srt.run_interp_from_gui(offset_list, rc)')
 
         #self.console.kernel.shell.push({'off_table':self.tabledata})
 
@@ -167,7 +169,9 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
         # has lots of options before plotting
 
         #plot_cmd = 'srt.plot_histograms_from_gui(rc, res_df)'
-        plot_cmd = ('srt.plot_slip_histories_from_gui(res_df, age_arr, rc,'
+        #plot_cmd = ('srt.plot_slip_histories_from_gui(res_df, age_arr, rc,'
+        plot_cmd = ('qtp.results_plots_for_gui(res_df, age_arr, rc, '
+                                                    +'n_pieces_best,'
                                                     +'offset_arr, offset_list,'
                                                     +'show_samples=True)' )
         self.console.execute(plot_cmd)
