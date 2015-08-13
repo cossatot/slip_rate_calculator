@@ -622,7 +622,7 @@ def piecewise_linear_objective(params, x_data, y_data):
 
 
 def rate_change_penalization(slopes, weight_pen):
-    return np.abs(np.diff(slopes)) * weight_pen
+    return 1 + np.abs(np.diff(slopes)) * weight_pen
 
 
 def penalized_piecewise_linear_objective(params, x_data, y_data, weight=0.1):
