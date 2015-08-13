@@ -8,11 +8,12 @@ from matplotlib.figure import Figure
 from matplotlib import collections as mc
 from matplotlib import gridspec
 
-from matplotlib.backends import qt_compat
+#from matplotlib.backends import qt_compat
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 
-from PyQt4 import QtGui, QtCore
+from PyQt4.QtGui import *
+from PyQt4.QtCore import *
 
 
 
@@ -31,9 +32,9 @@ def results_plots_for_gui(res_df, age_arr, run_config_dict, n_pieces,
     elif 100 <= n_iters:
         sym = ','
 
-    nbins=20
-
-    canvas = MplCanvas(num_subplots=2, num_pieces=n_pieces)
+    nbins = (int(np.log10(n_iters))+1) * 10
+    #canvas = MplCanvas(num_subplots=2, num_pieces=n_pieces)
+    canvas = PlotWindow(num_subplots=2, num_pieces=n_pieces)
 
     slip_history_ax = canvas.ax1
     slip_history_ax.set_ylabel('Modern offset (m)')
@@ -62,7 +63,7 @@ def results_plots_for_gui(res_df, age_arr, run_config_dict, n_pieces,
         m1_ax = canvas.ax3
         m1_ax.hist(res_df.m1, bins=nbins)
         #m1_ax.set_xlabel('Younger slip rate (mm/yr)')
-        m1_ax.xaxis.set_visible(False)
+        m1_ax.tick_params( axis='x', labelbottom='off')
 
         bkpt_ax = canvas.ax4a
         bkpt_ax.hist(res_df.breakpt, bins=nbins)
@@ -79,7 +80,9 @@ def results_plots_for_gui(res_df, age_arr, run_config_dict, n_pieces,
         
         m2_ax = canvas.ax6
         m2_ax.hist(res_df.m2, orientation='horizontal', bins=nbins)
-        m2_ax.yaxis.set_visible(False)
+        #m2_ax.yaxis.set_visible(False)
+        m2_ax.tick_params( axis='y', labelbottom='off')
+
 
     if show_data == True:
         #ax.errorbar() # need to finish
@@ -104,9 +107,14 @@ def results_plots_for_gui(res_df, age_arr, run_config_dict, n_pieces,
     canvas.show()
 
 
+def line_thickness_adjust(n_lines, exp=0.4, numer=1):
+    return numer / n_lines**exp
 
 
 def slip_history_fits(res_df, age_arr, run_config_dict, n_pieces):
+
+    n_iters = age_arr.shape[0]
+    lw = line_thickness_adjust(n_iters)
     
     if run_config_dict['fit_type'] in ('linear', 'piecewise'):
         pass
@@ -119,12 +127,17 @@ def slip_history_fits(res_df, age_arr, run_config_dict, n_pieces):
 
     line_pts = get_history_line_pts_from_results(res_df, age_arr, n_pieces)
 
-    line_coll = mc.LineCollection(line_pts, linewidths=0.1, colors='grey')
-
+    line_coll = mc.LineCollection(line_pts, linewidths=0.05,
+                                  #alpha=0.5, 
+                                  colors='grey')
     return line_coll
 
 
 def rate_history_fits(res_df, age_arr, run_config_dict, n_pieces):
+
+    n_iters = age_arr.shape[0]
+    lw = line_thickness_adjust(n_iters)
+    
 
     if run_config_dict['fit_type'] in ('linear', 'piecewise'):
         pass
@@ -137,7 +150,8 @@ def rate_history_fits(res_df, age_arr, run_config_dict, n_pieces):
 
     line_pts = get_rate_line_pts_from_results(res_df, age_arr, n_pieces)
 
-    line_coll = mc.LineCollection(line_pts, linewidths=0.1, colors='k')
+    line_coll = mc.LineCollection(line_pts, linewidths=0.5,
+                                  alpha=lw, colors='b')
 
     return line_coll
 
@@ -215,31 +229,30 @@ class MplCanvas(FigureCanvas):
     """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
     def __init__(self, parent=None, width=12, height=6, 
                  num_subplots=2, num_pieces=1):#, dpi=100):
-        fig = Figure(figsize=(width, height),
+        #super(MplCanvas, self).__init__(self)
+
+        self.fig = Figure(figsize=(width, height),
                      #, dpi=dpi
                      )
 
+        super(MplCanvas, self).__init__(self.fig)#, width=width, height=height, 
+                                        #num_subplots=num_subplots, 
+                                        #num_pieces=num_pieces)
+        self.canvas = FigureCanvas(self.fig)
+
         if num_subplots == 1:
-            self.axes = fig.add_subplot(111)
+            self.axes = self.fig.add_subplot(111)
 
         elif num_subplots == 2:
-
-
-
-            #self.ax1 = fig.add_subplot(131)
-            #self.ax2 = fig.add_subplot(132)
-
-            #gs.update(left=0.1, wspace=1.5)#, right=0.1)
-            
 
             if num_pieces == 1:
                 gs = gridspec.GridSpec(1,3)
 
                 ax_1 = gs.new_subplotspec((0, 0), colspan=2)
-                self.ax1 = fig.add_subplot(ax_1)
+                self.ax1 = self.fig.add_subplot(ax_1)
                 
                 ax_3 = gs.new_subplotspec((0, 2))
-                self.ax3 = fig.add_subplot(ax_3)
+                self.ax3 = self.fig.add_subplot(ax_3)
 
             elif num_pieces == 2:
                 gr = 4
@@ -250,42 +263,54 @@ class MplCanvas(FigureCanvas):
                 ax_2 = gs.new_subplotspec((gr//2,0), colspan=gc//2, 
                                                      rowspan=gr//2)
 
-                self.ax1 = fig.add_subplot(ax_1)
-                self.ax2 = fig.add_subplot(ax_2, sharex=self.ax1)
+                self.ax1 = self.fig.add_subplot(ax_1)
+                self.ax2 = self.fig.add_subplot(ax_2, sharex=self.ax1)
     
                 # m1 (youngest)
                 ax_3 = gs.new_subplotspec((0,gc//2), colspan=gc//4, 
                                                      rowspan=gr//2)
-                self.ax3 = fig.add_subplot(ax_3)
+                self.ax3 = self.fig.add_subplot(ax_3)
 
                 # breakpt_hist
                 ax_4a = gs.new_subplotspec((0,gc-gc//4), colspan=gc//4,
                                                          rowspan=gr//4)
-                self.ax4a = fig.add_subplot(ax_4a)
+                self.ax4a = self.fig.add_subplot(ax_4a)
                 
                 # rate change hist
                 ax_4b = gs.new_subplotspec((1,gc-gc//4), colspan=gc//4,
                                                          rowspan=gr//4)
-                self.ax4b = fig.add_subplot(ax_4b)
+                self.ax4b = self.fig.add_subplot(ax_4b)
 
                 # m1, m2 scatter
                 ax_5 = gs.new_subplotspec((gr//2, gc//2), colspan=gc//4,
                                                           rowspan=gr//2)
-                self.ax5 = fig.add_subplot(ax_5, sharex=self.ax3)
+                self.ax5 = self.fig.add_subplot(ax_5, sharex=self.ax3)
 
                 # m2 (older) hist
                 ax_6 = gs.new_subplotspec((gr//2, gc-gc//4), colspan=gc//4,
                                                              rowspan=gr//2)
-                self.ax6 = fig.add_subplot(ax_6, sharey=self.ax5)
+                self.ax6 = self.fig.add_subplot(ax_6, sharey=self.ax5)
+        
+                self.fig.subplots_adjust(hspace=0.45, bottom=0.1,
+                                         left=0.05, right=0.95)
 
 
-        #self.mpl_toolbar = NavigationToolbar(self.plot_canvas, self)
-        #self.plot_layout.addWidget(self.mpl_toolbar)
+class PlotWindow(QDialog, MplCanvas):
+    def __init__(self, parent=None, width=14, height=7, num_subplots=2,
+                 num_pieces=1):
+        super(PlotWindow, self).__init__(parent, width=width, height=height, 
+                                         num_subplots=num_subplots, 
+                                         num_pieces=num_pieces)
 
-        FigureCanvas.__init__(self, fig)
-        self.setParent(parent)
+        self.main_frame = QWidget()
+        self.canvas.setParent(self.main_frame)
+        self.mpl_toolbar = NavigationToolbar(self.canvas, self.main_frame,
+                                             coordinates=False)
 
-        #FigureCanvas.setSizePolicy(self,
-        #                           QtGui.QSizePolicy.Expanding,
-        #                           QtGui.QSizePolicy.Expanding)
-        FigureCanvas.updateGeometry(self)
+        self.vbox = QVBoxLayout()
+        self.vbox.addWidget(self.canvas)
+        self.vbox.addWidget(self.mpl_toolbar)
+        self.setLayout(self.vbox)
+
+        
+

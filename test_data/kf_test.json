@@ -4,7 +4,7 @@
     "zero_offset_age": 0.0,
     "random_seed": false,
     "random_seed_value": 69,
-    "force_increasing": false,
+    "force_increasing": true,
     "slip_reversals": false,
     "fit_type": "piecewise",
     "n_linear_pieces": 2
@@ -53,7 +53,7 @@
         105.7,
         300.0,
         350.0
-      ],     
+      ],
       "Offset_Type": "list",
       "Offset_Err": [
         0.0,

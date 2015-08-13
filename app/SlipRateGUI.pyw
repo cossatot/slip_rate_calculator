@@ -109,6 +109,8 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
         self.offsetMarkerTableView.horizontalHeader()
 
         self.addOffsetMarkerButton.clicked.connect(self.add_offset_marker_row)
+        self.removeOffsetMarkerButton.clicked.connect(
+                                                self.remove_offset_marker_row)
 
         self.offsetMarkerTableView.model().layoutChanged.connect(
                                                          self.push_table_data)
@@ -123,6 +125,13 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
         self.tabledata.append(
             ['name', 0., 'age_type', 0., 'age_err_type', 'age_unit', 
                      0., 'offset_type', 0., 'offset_err_type', 'offset_unit'])
+
+        self.offsetMarkerTableView.model().layoutChanged.emit()
+
+    def remove_offset_marker_row(self):
+        selections = self.offsetMarkerTableView.selectedIndexes()[0]
+        row_index = selections.row()
+        rm = self.offsetMarkerTableView.model().removeRow(row_index)
 
         self.offsetMarkerTableView.model().layoutChanged.emit()
 
@@ -340,6 +349,17 @@ class OffsetMarkerTableModel(QAbstractTableModel):
 
     def flags(self, index):
         return Qt.ItemIsEditable | Qt.ItemIsEnabled | Qt.ItemIsSelectable
+
+
+    def removeRow(self, row, parent=QModelIndex()):
+        self.removeRows(row, 1, parent)
+
+    def removeRows(self, row, count, parent=QModelIndex()):
+        self.beginRemoveRows(parent, row, row+count-1)
+        for i in reversed(range(count)):
+            self.arraydata.pop(row+i)
+        self.endRemoveRows()
+        return True
 
 
 
