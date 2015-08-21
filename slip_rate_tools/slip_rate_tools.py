@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import division
 import time
 from collections import OrderedDict
 import itertools
@@ -197,8 +198,7 @@ class OffsetMarker:
     
     def sample_age_from_uniform(self, n):
         """Generates n-length sample from uniform distribution of ages"""
-        age_sample = (np.random.rand(n) * 2 -1) * self.age_err + self.age_mean
-        #TODO: change mean, err to min, max
+        return np.random.uniform(self.age_min, self.age_max, n)
         
         return age_sample
         
