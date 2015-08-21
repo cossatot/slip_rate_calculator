@@ -232,7 +232,9 @@ completely reproducible. Note that for our purposes, these pseudorandom numbers 
 definitely random enough for statistical robustness. This option is set through a
 check box, and a numerical value to be used is typed in the field.
 
-`Force Increasing`: 
+`Force Increasing`: This ensures that the ages and offsets for each iteration are
+monotonically increasing.  It does *not* ensure that the best-fit rates will be
+everywhere positive, although it strongly increases the likelihood of this.
 
 `Slip Reversal Check`: This was supposed to do something that didn't end up getting
 implemented, probably a statistical test to see whether a slip reversal occurred.
