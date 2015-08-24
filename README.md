@@ -209,7 +209,8 @@ the `Linear` fitting. Nonetheless, it is still reasonably fast.
 fit to the data. Because splines can fit exactly, there is no error associated with the
 splines. They're perfect! So this will have some different uses, for example tying
 geodetic, neotectonic and geologic data over different orders of time and displacement
-magnitude, 
+magnitude, where the data are sparse and widely-spaced enough that no linear
+fit is required or expected to fit.
 
 #### Run Settings
 
@@ -248,7 +249,7 @@ configuration.
 ### Intermediate Usage
 For users with some knowledge of the Python data stack, once the data are input and run
 for the first time, the user can type commands to do different analysis, make new plots,
-and so forth through the IPython interface. 
+and whatnot through the IPython interface. 
 
 One feature of the embedded IPython console is that all of the GUI commands for running
 and plotting are done through the IPython interpreter instead of the Python interpreter
@@ -256,7 +257,7 @@ in the background that runs the GUI: all of the buttons and so forth directly se
 commands to the IPython interpreter. This makes it so that the user can read the exact
 commands that were sent, modify them, learn from them, etc. Additionally, the
 `slip_rate_tools` module that does the real science can be called directly, and has
-text completion, docstrings and so forth exposed.
+text completion and docstrings exposed.
 
 ### Advanced Usage
 All of the scientific functionality is implemented through the `slip_rate_tools` module
