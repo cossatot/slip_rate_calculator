@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '../gui/mainwindow.ui'
+# Form implementation generated from reading ui file 'gui/mainwindow.ui'
 #
-# Created: Fri Jul 31 10:31:32 2015
+# Created: Mon Aug 24 09:59:26 2015
 #      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -198,6 +198,6 @@ class Ui_MainWindow(object):
         self.zeroOffsetLabel.setText(_translate("MainWindow", "Zero offset age", None))
         self.randSeedLineEdit.setText(_translate("MainWindow", "69.", None))
         self.randSeedCheckBox.setText(_translate("MainWindow", "random seed", None))
-        self.forceIncrCheckBox.setText(_translate("MainWindow", "force increasing", None))
-        self.slipRevCheckBox.setText(_translate("MainWindow", "slip reversal check", None))
+        self.forceIncrCheckBox.setText(_translate("MainWindow", "Force increasing data", None))
+        self.slipRevCheckBox.setText(_translate("MainWindow", "Allow slip reversals", None))
 

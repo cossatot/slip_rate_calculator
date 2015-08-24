@@ -529,6 +529,99 @@ def make_age_offset_arrays(offset_list, n, force_increasing=False,
 # Piecewise linear fitting.  Multiple methods here, pick your poison.
 ###
 
+def fit_piecewise_linear_w_breakpts(x_data, y_data, breakpts):
+    '''
+    Modified from an email by Josef Perktold on the 
+    StatsModels mailing list.
+    '''
+    
+    # make breakpts into list, so we can prepend 0
+    if hasattr(breakpts, 'shape'):
+        breakpts = breakpts.tolist()
+    else:
+        breakpts = list(breakpts)
+    breakpts.insert(0,0) # slope over entire array
+    
+    # make exog array
+    A = np.column_stack([np.maximum(0, x_data - knot) for knot in breakpts])
+
+    # returned slopes are in difference from last slope where slope1 is from 0
+    # don't know how to make exog array otherwise
+    slopes, sum_sq_err = np.linalg.lstsq(A, y_data)[0:2]
+
+    return np.cumsum(slopes), sum_sq_err # cumsum makes each slope the real one
+
+
+def piecewise_linear_breakpt_search(x_data, y_data, n_pieces=2, n_iters=20,
+                                    penalize_rate_changes=False, 
+                                    weight_pen=0.2, 
+                                    allow_slip_reversals=False):
+    '''
+    docs
+    '''
+    n_breaks = n_pieces - 1
+    breakpt_samples = np.random.uniform(0., x_data.max(), (n_iters, n_breaks))
+    breakpt_samples = np.sort(breakpt_samples, axis=1)
+    slopes = {}
+    if allow_slip_reversals == False: # 1 means no reversal, 0 means reversal
+        monotonic_index = np.zeros(len(breakpt_samples), dtype=int)
+
+    # make this huge so failures won't be selected as min
+    sum_sq_errs = np.ones(n_iters) * np.inf
+    if penalize_rate_changes == True:
+        pen_sum_sq = sum_sq_errs.copy()
+
+    for i, breakpt in enumerate(breakpt_samples):
+        try:
+            slopes[i], sum_sq_errs[i] = fit_piecewise_linear_w_breakpts(x_data,
+                                                                        y_data,
+                                                                       breakpt)
+            if penalize_rate_changes == True:
+                pen_sum_sq[i] = sum_sq_errs[i] * rate_change_penalization(
+                                                                    slopes[i], 
+                                                                    weight_pen)
+        except ValueError: # returned when least_sqs problem ill-conditioned
+            pass
+
+        if allow_slip_reversals == False:
+            monotonic_index[i] = check_slip_monotonicity(slopes[i])
+            rev_index = np.bool_(1 - monotonic_index)
+
+    if allow_slip_reversals == False: # give slip reversals inf err, keep inds
+        sum_sq_errs[rev_index] = np.inf
+        if penalize_rate_changes == True:
+            pen_sum_sq[rev_index] = np.inf
+
+    if penalize_rate_changes == True:
+        min_i = np.argmin(pen_sum_sq)
+    else:
+        min_i = np.argmin(sum_sq_errs)
+
+    return flatten([slopes[min_i], breakpt_samples[min_i], 
+                    [sum_sq_errs[min_i]]])
+
+
+def check_slip_monotonicity(rates):
+    '''
+    Arguments: 'rates', a sequence of slip rates.
+
+    Checks for monotonic slip, i.e. no changes in sign of slip rates.
+    If no slip reversals are found, returns True.
+    '''
+    if all(rate >= 0. for rate in rates) or all(rate <= 0. for rate in rates):
+        return 1
+    else:
+        return 0
+
+
+def rate_change_penalization(slopes, weight_pen):
+    return 1 + np.abs(np.diff(slopes)) * weight_pen
+
+
+### 
+# Older, not currently used piecewise fitting stuff
+### 
+
 def piece_lin_objective(params, x_data, y_data): 
     '''docs
 
@@ -569,73 +662,8 @@ def piecewise_linear(x, breakpt, m1, m2):
                              lambda x: m2 * x + (m1 * breakpt) - m2 * breakpt])
 
 
-def fit_piecewise_linear_w_breakpts(x_data, y_data, breakpts):
-    '''
-    Modified from an email by Josef Perktold on the 
-    StatsModels mailing list.
-    '''
-    
-    # make breakpts into list, so we can prepend 0
-    if hasattr(breakpts, 'shape'):
-        breakpts = breakpts.tolist()
-    else:
-        breakpts = list(breakpts)
-    breakpts.insert(0,0) # slope over entire array
-    
-    # make exog array
-    A = np.column_stack([np.maximum(0, x_data - knot) for knot in breakpts])
-
-    # returned slopes are in difference from last slope where slope1 is from 0
-    # don't know how to make exog array otherwise
-    slopes, sum_sq_err = np.linalg.lstsq(A, y_data)[0:2]
-
-    return np.cumsum(slopes), sum_sq_err # cumsum makes each slope the real one
-
-
-def piecewise_linear_breakpt_search(x_data, y_data, n_pieces=2, n_iters=20,
-                                    penalize_rate_changes=False, 
-                                    weight_pen=0.1):
-    '''
-    docs
-    '''
-    n_breaks = n_pieces - 1
-    breakpt_samples = np.random.uniform(0., x_data.max(), (n_iters, n_breaks))
-    breakpt_samples = np.sort(breakpt_samples, axis=1)
-    slopes = {}
-
-    # make this huge so failures won't be selected as min
-    sum_sq_errs = np.ones(n_iters) * np.inf
-    if penalize_rate_changes == True:
-        pen_sum_sq = sum_sq_errs.copy()
-
-    for i, breakpt in enumerate(breakpt_samples):
-        try:
-            slopes[i], sum_sq_errs[i] = fit_piecewise_linear_w_breakpts(x_data,
-                                                                        y_data,
-                                                                       breakpt)
-            if penalize_rate_changes == True:
-                pen_sum_sq[i] = sum_sq_errs[i] * rate_change_penalization(
-                                                                    slopes[i], 
-                                                                    weight_pen)
-
-        except ValueError: # returned when least_sqs problem ill-conditioned
-            pass
-    if penalize_rate_changes == True:
-        min_i = np.argmin(pen_sum_sq)
-    else:
-        min_i = np.argmin(sum_sq_errs)
-
-    return flatten([slopes[min_i], breakpt_samples[min_i], 
-                    [sum_sq_errs[min_i]]])
-
-
 def piecewise_linear_objective(params, x_data, y_data):
-
     return ( (y_data - piecewise_linear(x_data, *params))**2).sum()
-
-
-def rate_change_penalization(slopes, weight_pen):
-    return 1 + np.abs(np.diff(slopes)) * weight_pen
 
 
 def penalized_piecewise_linear_objective(params, x_data, y_data, weight=0.1):
@@ -724,7 +752,7 @@ def make_linear_results_columns(fit_type=None, n_linear_pieces=None):
 
 
 def do_linear_fits(age_arr, off_arr, fit_type=None, trim_results=True,
-                   n_linear_pieces=None):
+                   n_linear_pieces=None, allow_slip_reversals=False):
 
     n_iters = age_arr.shape[0]
     results_columns = make_linear_results_columns(fit_type, n_linear_pieces)
@@ -748,9 +776,13 @@ def do_linear_fits(age_arr, off_arr, fit_type=None, trim_results=True,
             #results_arr[i, 0:4] = piecewise_linear_opt(xd, yd)
             #results_arr[i, 0:4] = penalized_piecewise_linear_opt(xd, yd)
             results_arr[i, 0:4] = piecewise_linear_breakpt_search(xd, yd,
-                                                n_pieces=n_linear_pieces,
-                                                penalize_rate_changes=True,
-                                                weight_pen=0.2)
+                                    n_pieces=n_linear_pieces,
+                                    penalize_rate_changes=True, weight_pen=0.2,
+                                    allow_slip_reversals=allow_slip_reversals)
+
+        if allow_slip_reversals==False: #extra filter to catch wiley minnows
+            mon_inds = np.bool_([check_slip_monotonicity((results_arr[i,0:2]))
+                                for i in range(n_iters)])
 
     results_df = pd.DataFrame(results_arr, columns=results_columns)
      
@@ -758,12 +790,14 @@ def do_linear_fits(age_arr, off_arr, fit_type=None, trim_results=True,
        if trim_results==True:
            # option will be set in the GUI
            
-            results_df = trim_results_df(results_df, age_arr)
+            results_df = trim_results_df(results_df, age_arr, 
+                                    allow_slip_reversals=allow_slip_reversals)
 
     return results_df
 
 
-def trim_results_df(results_df, age_arr, trim_mag=5):
+def trim_results_df(results_df, age_arr, trim_mag=5, 
+                    allow_slip_reversals=False):
 
     results_df = results_df[(results_df.breakpt > age_arr[:,0])
                             &(results_df.breakpt < age_arr[:,-1])]
@@ -785,6 +819,13 @@ def trim_results_df(results_df, age_arr, trim_mag=5):
 
     results_df = results_df[(np.abs(results_df.m2 - results_df.m2.median())
                              < m2_range)]
+
+    if allow_slip_reversals == False:
+        pos_slip = ((results_df.m1 >= 0.) & (results_df.m2 >= 0.))
+        neg_slip = ((results_df.m1 <= 0.) & (results_df.m2 <= 0.))
+
+        results_df = results_df[(pos_slip) ^ (neg_slip)]
+
     return results_df
 
 
@@ -952,7 +993,8 @@ def run_interp_from_gui(offset_list, run_config_dict):
     print('doing fits')
     if rc['fit_type'] in ['linear', 'piecewise']:
         results_df = do_linear_fits(age_arr, off_arr, fit_type=rc['fit_type'],
-                                    n_linear_pieces=rc['n_linear_pieces'])
+                                    n_linear_pieces=rc['n_linear_pieces'],
+                                    allow_slip_reversals=rc['slip_reversals'])
     else:
         raise Exception('fit type not implemented yet')
 

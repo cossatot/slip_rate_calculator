@@ -343,14 +343,14 @@
          <item>
           <widget class="QCheckBox" name="forceIncrCheckBox">
            <property name="text">
-            <string>force increasing</string>
+            <string>Force increasing data</string>
            </property>
           </widget>
          </item>
          <item>
           <widget class="QCheckBox" name="slipRevCheckBox">
            <property name="text">
-            <string>slip reversal check</string>
+            <string>Allow slip reversals</string>
            </property>
           </widget>
          </item>

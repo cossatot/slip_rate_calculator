@@ -7,21 +7,15 @@ from PyQt4.QtGui import *
 from IPython.qt.console.rich_ipython_widget import RichIPythonWidget
 from IPython.qt.inprocess import QtInProcessKernelManager
 
-
 import slipRateWindow
 
 sys.path.append('../slip_rate_tools/')
 import slip_rate_tools as srt
 
 import pandas as pd
-#import matplotlib.pyplot as plt
 import numpy as np
 from collections import OrderedDict
 import json
-
-#from matplotlib.backends import qt_compat
-#from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-#from matplotlib.figure import Figure
 
 import qt_plots as qtp
 
