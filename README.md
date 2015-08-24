@@ -232,13 +232,12 @@ completely reproducible. Note that for our purposes, these pseudorandom numbers 
 definitely random enough for statistical robustness. This option is set through a
 check box, and a numerical value to be used is typed in the field.
 
-`Force Increasing`: This ensures that the ages and offsets for each iteration are
+`Force increasing data`: This ensures that the ages and offsets for each iteration are
 monotonically increasing.  It does *not* ensure that the best-fit rates will be
 everywhere positive, although it strongly increases the likelihood of this.
 
-`Slip Reversal Check`: This was supposed to do something that didn't end up getting
-implemented, probably a statistical test to see whether a slip reversal occurred.
-It may get modified or deleted in the future.
+`Allow slip reversals`: This box allows the sign of the slip rate to change. It defaults to `False`.
+
 
 #### Importing and exporting
 There are two buttons that do this exactly. They open up `File Open`-type dialongs that
