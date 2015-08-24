@@ -3,6 +3,7 @@ from __future__ import division
 import time
 from collections import OrderedDict
 import itertools
+import ast
 import numpy as np
 import numpy.ma as ma 
 #import Splines
@@ -146,7 +147,7 @@ class OffsetMarker:
                       and age_sd == None):
                     self.age_dist_type = 'uniform'
                 elif age_probs is not None and age_vals is not None:
-                    self.age_dist_type == 'arbitrary'
+                    self.age_dist_type = 'arbitrary'
                      
             self.source = source
             
@@ -200,14 +201,10 @@ class OffsetMarker:
         """Generates n-length sample from uniform distribution of ages"""
         return np.random.uniform(self.age_min, self.age_max, n)
         
-        return age_sample
-        
     def sample_age_from_arbitrary(self, n):
         """not supported yet"""
-        age_sample = inverse_transform_sample(self.age_vals, self.age_probs, n)
+        return inverse_transform_sample(self.age_vals, self.age_probs, n)
 
-        return age_sample
-    
     def sample_age(self, n):
         """Generates n-length array of samples from distribution"""
         if self.age_dist_type == 'normal':
@@ -217,7 +214,7 @@ class OffsetMarker:
             age_sample = self.sample_age_from_uniform(n)
         
         elif self.age_dist_type == 'arbitrary':
-            pass
+            age_sample = self.sample_age_from_arbitrary(n)
         
         else:
             print('What is the age distribution type?')
@@ -260,8 +257,24 @@ def offset_marker_dict_from_row(row, table_header):
     off_mark_d = OrderedDict()
 
     for i, key in enumerate(table_header):
-        off_mark_d[key] = row[i]
+        try:
+            off_mark_d[key] = ast.literal_eval(row[i])
+        except ValueError:
+            off_mark_d[key] = row[i]
 
+    for key, val in off_mark_d.items():
+        if key in ['Age', 'Age_Err', 'Offset', 'Offset_Err']:
+            if not isinstance(val, (list, tuple, np.ndarray)):
+                if not isinstance( val, (int, float, complex)):
+                    raise Exception(
+                        ('Error in {}: value for {} is not numeric. Maybe '
+                         +'a string?').format(off_mark_d['Name'], key) )
+            else:
+                for item in val:
+                    if not isinstance( item, (int, float, complex)):
+                        raise Exception(
+                            ('Error in {}: value for {} is not numeric. Maybe '
+                            +'a string?').format(off_mark_d['Name'], key) )
     return off_mark_d
 
 
@@ -367,7 +380,7 @@ def offset_marker_from_dict(off_row_d):
         args['age_sd'] = None # just to make sure the class inits right
    
     elif or_d['Age_Err_Type'] == 'probs':
-        if len(or_d['Age_Err']):
+        if len(or_d['Age_Err']) < 2:
             raise Exception('probs Age_Err have to be longer than 1!')
         args['age_probs'] = or_d['Age_Err']
         # check to make sure age vals are set too?

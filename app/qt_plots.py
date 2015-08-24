@@ -101,6 +101,8 @@ def results_plots_for_gui(res_df, age_arr, run_config_dict, n_pieces,
                                        n_pieces)
 
     slip_history_ax.add_collection(slip_histories)
+    slip_history_ax.set_xlim(left=0.)
+    slip_history_ax.set_ylim(bottom=0.)
     slip_history_ax.invert_xaxis()
 
     
