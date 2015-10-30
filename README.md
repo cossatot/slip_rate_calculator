@@ -21,7 +21,7 @@ or a cubic spline. The piecewise fitting routine also includes a statistical
 test (based on the [Bayesian Information Criterion][bic]) to determine whether
 there was a slip rate change at some point in the past.
 
-![Sample output from 2-piece linear slip rate estimation](./docs/images/test_2_piece_results.png)
+![Sample output from 2-piece linear slip rate estimation](./docs/images/lone_mtn_2_piece_results.png)
 
 
 [bic]: https://en.wikipedia.org/wiki/Bayesian_information_criterion
