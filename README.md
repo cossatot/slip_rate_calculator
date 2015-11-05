@@ -104,7 +104,7 @@ then are made into a empirical cumulative distribution function, to which the
 
 Currently, only linear and piecewise-linear fitting is supported. Linear
 fitting is perfomed as a Linear Least Squares (LLS) regression with the 
-*y*-intercept fixed at the `zero offset age`, which is the age at which no
+*x*-intercept fixed at the `zero offset age`, which is the age at which no
 offset occurs (i.e. the present for active faults).
 
 Piecewise-linear fitting is a nonlinear regression problem if the *x*
