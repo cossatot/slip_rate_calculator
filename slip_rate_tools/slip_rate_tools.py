@@ -45,10 +45,10 @@ def sample_slip_history(age_array, offset_array, time_array,
 
 def inverse_transform_sample(vals, probs, n_samps, n_interp=1000, seed=False,
                             seed_val=69):
-    pdf_range, pdf_vals = make_pdf(vals, probs, n_interp)
-    cdf_range, cdf_vals = make_cdf(pdf_range, pdf_vals)
+    pdf_range, pdf_probs = make_pdf(vals, probs, n_interp)
+    cdf_range, cdf_probs = make_cdf(pdf_range, pdf_probs)
 
-    cdf_interp = interp1d(cdf_vals, cdf_range)
+    cdf_interp = interp1d(cdf_probs, cdf_range)
 
     if seed == True:
         np.random.seed(seed_val)
@@ -66,13 +66,13 @@ def make_pdf(vals, probs, n_interp=1000):
 
     pmf = interp1d(vals, probs)
     pmf_samples = pmf(pdf_range)
-    pdf_vals = pmf_samples / np.sum(pmf_samples)
+    pdf_probs = pmf_samples / np.sum(pmf_samples)
 
-    return pdf_range, pdf_vals
+    return pdf_range, pdf_probs
 
 
-def make_cdf(pdf_range, pdf_vals):
-    return (pdf_range, np.cumsum(pdf_vals))
+def make_cdf(pdf_range, pdf_probs):
+    return (pdf_range, np.cumsum(pdf_probs))
 
 
 class OffsetMarker:
