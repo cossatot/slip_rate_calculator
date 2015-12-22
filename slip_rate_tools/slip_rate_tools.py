@@ -48,7 +48,8 @@ def inverse_transform_sample(vals, probs, n_samps, n_interp=1000, seed=False,
     pdf_range, pdf_probs = make_pdf(vals, probs, n_interp)
     cdf_range, cdf_probs = make_cdf(pdf_range, pdf_probs)
 
-    cdf_interp = interp1d(cdf_probs, cdf_range)
+    cdf_interp = interp1d(cdf_probs, cdf_range, bounds_error=False,
+                          fill_value=0.)
 
     if seed == True:
         np.random.seed(seed_val)
@@ -839,6 +840,13 @@ def BIC(log_likelihood, n, p):
     return log_likelihood - ( 0.5 * p * np.log(n / 2 * np.pi))
 
 
+def AIC(log_likelihood, n, p):
+    '''Akaiki's Information Criterion.  Uses same function call as BIC(),
+       though *n* is not used.'''
+    
+    return 2 * p - 2 * log_likelihood
+
+
 def find_nearest_index(array, value):
     idx = (np.abs(array-value)).argmin()
     return idx
@@ -850,8 +858,14 @@ def rate_change_test(results_df, n_offsets, print_res=False):
 
     p1 = 1 # number of parameters for single linear fit
     p2 = 3 # number of parameters for 2 part piecewise fit
-    results_df['bic_1'] = BIC(results_df.log_like_1, n_offsets, p1)
-    results_df['bic_2'] = BIC(results_df.log_like_2, n_offsets, p2)
+    
+    if n_offsets > 5:
+        results_df['bic_1'] = BIC(results_df.log_like_1, n_offsets, p1)
+        results_df['bic_2'] = BIC(results_df.log_like_2, n_offsets, p2)
+
+    else:
+        results_df['bic_1'] = AIC(results_df.log_like_1, n_offsets, p1)
+        results_df['bic_2'] = AIC(results_df.log_like_2, n_offsets, p2)
 
     num_1_count = results_df[results_df.bic_1 > results_df.bic_2].shape[0]
     num_2_count = n_iters_out - num_1_count
