@@ -269,9 +269,6 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
         return
 
 
-
-
-
 class OffsetMarkerTableModel(QAbstractTableModel):
     '''docs'''
     def __init__(self, data_in, header_in, parent=None):
