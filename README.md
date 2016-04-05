@@ -34,13 +34,15 @@ The Slip Rate Calculator is [MIT licensed](LICENSE.txt).
 ## Installation
 The Slip Rate Calculator is a Python 3 application. It depends heavily on the
 core Python scientific stack, as well as PyQt4. The easiest way to get
-everything running is to install the free [Anaconda Python 3.4][anaconda]
+everything running is to install the free [Anaconda Python 3.5][anaconda]
 scientific Python distribution. It doesn't interfere with your system Python,
 or any other Python versions you may have on your computer.
 
 [anaconda]: https://store.continuum.io/cshop/anaconda/
+[release]: https://github.com/cossatot/slip_rate_calculator/releases
 
-Then, the git repository should be cloned:
+Then, either download a [release][release] if you don't have or don't want
+to use `git`, or (if you want easy updates) clone the git repository:
 
 ```
 git clone https://github.com/cossatot/slip_rate_calculator.git
