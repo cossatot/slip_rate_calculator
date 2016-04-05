@@ -845,6 +845,22 @@ def AIC(log_likelihood, n, p):
        though *n* is not used.'''
     
     return 2 * p - 2 * log_likelihood
+    return 2 * p - 2 * log_likelihood 
+
+
+def AICc(log_likelihood, n, p):
+    
+    aic = AIC(log_likelihood, n, p)
+
+    correction_numerator = 2 * p * (p + 1) 
+    correction_denominator = (n - p - 1)
+
+    if correction_denominator == 0:
+        correction = np.inf
+    else:
+        correction = correction_numerator / correction_denominator
+
+    return aic + correction
 
 
 def find_nearest_index(array, value):
@@ -856,29 +872,45 @@ def rate_change_test(results_df, n_offsets, print_res=False):
     results_df['log_like_2'] = log_likelihood(results_df.sumsq2, n_offsets)
     n_iters_out = results_df.shape[0]
 
-    p1 = 1 # number of parameters for single linear fit
-    p2 = 3 # number of parameters for 2 part piecewise fit
+    # pn = num params, incl. sum_sq_err and fixed intercept
+    p1 = 3 #1 # number of parameters for single linear fit
+    p2 = 5 #3 # number of parameters for 2 part piecewise fit
     
-    if n_offsets > 5:
-        results_df['bic_1'] = BIC(results_df.log_like_1, n_offsets, p1)
-        results_df['bic_2'] = BIC(results_df.log_like_2, n_offsets, p2)
+    #if n_offsets > 46:
+    #    results_df['bic_1'] = BIC(results_df.log_like_1, n_offsets, p1)
+    #    results_df['bic_2'] = BIC(results_df.log_like_2, n_offsets, p2)
 
-    else:
-        results_df['bic_1'] = AIC(results_df.log_like_1, n_offsets, p1)
-        results_df['bic_2'] = AIC(results_df.log_like_2, n_offsets, p2)
+    #else:
+    #    results_df['bic_1'] = AICc(results_df.log_like_1, n_offsets, p1)
+    #    results_df['bic_2'] = AICc(results_df.log_like_2, n_offsets, p2)
 
-    num_1_count = results_df[results_df.bic_1 > results_df.bic_2].shape[0]
+    #num_1_count = results_df[results_df.bic_1 > results_df.bic_2].shape[0]
+    #num_2_count = n_iters_out - num_1_count
+    #num_1_odds = num_1_count / n_iters_out
+    #num_2_odds = num_2_count / n_iters_out
+
+    #if num_1_odds > num_2_odds:
+    #    n_pieces_best = 1
+    #else:
+    #    n_pieces_best = 2
+    
+    results_df['bic_1'] = AIC(results_df.log_like_1, n_offsets, p1)
+    results_df['bic_2'] = AIC(results_df.log_like_2, n_offsets, p2)
+
+    num_1_count = results_df[results_df.bic_1 < results_df.bic_2].shape[0]
     num_2_count = n_iters_out - num_1_count
+    
     num_1_odds = num_1_count / n_iters_out
     num_2_odds = num_2_count / n_iters_out
 
-    if num_1_odds > num_2_odds:
+    if num_1_count > num_2_count:
         n_pieces_best = 1
     else:
         n_pieces_best = 2
     
+
     if print_res==True:
-        if num_1_odds > num_2_odds:
+        if n_pieces_best == 1:
             print('1 line fits best.  {}/{} ({}% chance)'.format(num_1_count,
                                                                n_iters_out,
                                                                num_1_odds*100))

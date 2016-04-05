@@ -1,14 +1,12 @@
 import numpy as np
 import pandas as pd
-#from sklearn.neighbors import KernelDensity
 from slip_rate_tools import *
 
-import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib import collections as mc
 from matplotlib import gridspec
 
-#from matplotlib.backends import qt_compat
+from matplotlib.backends import qt_compat
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 
@@ -33,7 +31,6 @@ def results_plots_for_gui(res_df, age_arr, run_config_dict, n_pieces,
         sym = ','
 
     nbins = (int(np.log10(n_iters))+1) * 10
-    #canvas = MplCanvas(num_subplots=2, num_pieces=n_pieces)
     canvas = PlotWindow(num_subplots=2, num_pieces=n_pieces)
 
     slip_history_ax = canvas.ax1
@@ -107,6 +104,9 @@ def results_plots_for_gui(res_df, age_arr, run_config_dict, n_pieces,
 
     
     canvas.show()
+
+    return canvas
+    #plt.show()
 
 
 def line_thickness_adjust(n_lines, exp=0.4, numer=1):

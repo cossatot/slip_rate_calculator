@@ -4,8 +4,12 @@ import os
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-from IPython.qt.console.rich_ipython_widget import RichIPythonWidget
-from IPython.qt.inprocess import QtInProcessKernelManager
+try:
+    from qtconsole.rich_ipython_widget import RichIPythonWidget
+    from qtconsole.inprocess import QtInProcessKernelManager
+except ImportError:
+    from IPython.qt.console.rich_ipython_widget import RichIPythonWidget
+    from IPython.qt.inprocess import QtInProcessKernelManager
 
 import slipRateWindow
 
@@ -19,40 +23,7 @@ import json
 
 import qt_plots as qtp
 
-
-'''
-Test data.  This will be removed when the adding data interface is built.
-'''
-
-offset_df = pd.read_csv('../test_data/offsets.csv')
-offset_df['offset_m'] = offset_df.offset_in * 200.
-
-t1 = offset_df[offset_df.unit == 'T1']
-qa = offset_df[offset_df.unit == 'Qa']
-qao = offset_df[offset_df.unit == 'Qao']
-
-#qa['offset_m'] += 200.
-
-t1_age = {'mean': 24., 'sd':8.}
-qa_age = {'mean': 50., 'sd':20.}
-qao_age = {'mean':100., 'sd':32.}
-
-qao_age['mean'] += 200
-
-T1 = srt.OffsetMarker(age_mean=t1_age['mean'], age_sd=t1_age['sd'],
-                      offset_vals=t1.offset_m, offset_probs=t1.rel_prob)
-
-Qa = srt.OffsetMarker(age_mean=qa_age['mean'], age_sd=qa_age['sd'],
-                      offset_vals=qa.offset_m, offset_probs=qa.rel_prob)
-
-Qao = srt.OffsetMarker(age_mean=qao_age['mean'], age_sd=qao_age['sd'],
-                      offset_vals=qao.offset_m, offset_probs=qao.rel_prob)
-
-
-offset_list = [T1, Qa, Qao]
-
 plt=''
-
 
 
 class EmbedIPython(RichIPythonWidget):
@@ -75,9 +46,6 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
 
         self.setupUi(self)
         self.setWindowTitle('Slip Rate Calculator')
-
-        #self.textBrowser.append("Welcome to the Slip Rate Calculator!")
-
 
         # main running buttons
         self.runButton.clicked.connect(self.run_slip_history)
@@ -161,6 +129,7 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
 
     def cancel_run(self):
         # cancel run process
+        # none of the options seem to work...
 
         #self.console.execute("\x03\r\n")
         #self.console.interrupt_kernel()
@@ -168,15 +137,12 @@ class SlipRateWindow(QMainWindow, slipRateWindow.Ui_MainWindow):
         # pass
 
     def plot_results(self):
-        # maybe plot some stuff, maybe open up a new window that
-        # has lots of options before plotting
 
-        #plot_cmd = 'srt.plot_histograms_from_gui(rc, res_df)'
-        #plot_cmd = ('srt.plot_slip_histories_from_gui(res_df, age_arr, rc,'
-        plot_cmd = ('qtp.results_plots_for_gui(res_df, age_arr, rc, '
-                                                    +'n_pieces_best,'
-                                                    +'offset_arr, offset_list,'
-                                                    +'show_samples=True)' )
+        #plot_cmd = ('qtp.results_plots_for_gui(res_df, age_arr, rc, '
+        plot_cmd = ('plot_win = qtp.results_plots_for_gui(res_df, age_arr, rc,'
+                                                   +' n_pieces_best,'
+                                                   +' offset_arr, offset_list,'
+                                                   +' show_samples=True)' )
         self.console.execute(plot_cmd)
 
         return
@@ -363,6 +329,36 @@ offset_table_header = ['Name', 'Age', 'Age_Type', 'Age_Err', 'Age_Err_Type',
                        'Offset_Err_Type', 'Offset_Units']
 
 
+'''
+Test data.  This will be removed when the adding data interface is built.
+'''
+
+offset_df = pd.read_csv('../test_data/offsets.csv')
+offset_df['offset_m'] = offset_df.offset_in * 200.
+
+t1 = offset_df[offset_df.unit == 'T1']
+qa = offset_df[offset_df.unit == 'Qa']
+qao = offset_df[offset_df.unit == 'Qao']
+
+#qa['offset_m'] += 200.
+
+t1_age = {'mean': 24., 'sd':8.}
+qa_age = {'mean': 50., 'sd':20.}
+qao_age = {'mean':100., 'sd':32.}
+
+qao_age['mean'] += 200
+
+T1 = srt.OffsetMarker(age_mean=t1_age['mean'], age_sd=t1_age['sd'],
+                      offset_vals=t1.offset_m, offset_probs=t1.rel_prob)
+
+Qa = srt.OffsetMarker(age_mean=qa_age['mean'], age_sd=qa_age['sd'],
+                      offset_vals=qa.offset_m, offset_probs=qa.rel_prob)
+
+Qao = srt.OffsetMarker(age_mean=qao_age['mean'], age_sd=qao_age['sd'],
+                      offset_vals=qao.offset_m, offset_probs=qao.rel_prob)
+
+
+offset_list = [T1, Qa, Qao]
 test_table_data = [['T1', 24., 'mean', 8., 'sd', 'ka', 
                     list(t1.offset_m), 'list', list(t1.rel_prob), 'probs', 'm'],
                    ['Qa', 50., 'mean', 20., 'sd', 'ka', 
