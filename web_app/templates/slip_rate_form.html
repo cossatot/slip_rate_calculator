@@ -8,12 +8,12 @@
 
     {{ result[0]|safe }}
 
-    <title>Plot age/offset scatters</title>
+    <title>Slip Rate Calculator</title>
 
   </head>
 
   <body>
-    <h1>Enter Age and Offset Data</h1>
+    <h3>Enter Age and Offset Data</h3>
     <form action="." method="POST">
 
       <table class="table-bordered table-condensed">
@@ -29,6 +29,7 @@
             <th>Offset Type</th>
             <th>Offset Units</th>
           </tr>
+          <!-- Offset Unit 1 -->
           <tr>
             <td><input type="text" name="unit_1" class="form-control" /></td>
             <td><input type="number" name="age_1" class="form-control" /></td>
@@ -56,9 +57,104 @@
                   <option value="a">mm</option>
                 </select></td>
           </tr>
+          <!-- Offset Unit 2 -->
+          <tr>
+            <td><input type="text" name="unit_2" class="form-control" /></td>
+            <td><input type="number" name="age_2" class="form-control" /></td>
+            <td><input type="number" name="age_err_2" class="form-control" /></td>
+            <td><select name="age_type_2">
+                  <option value="mean_sd">Mean ± St. Dev.</option>
+                  <option value="mean_minmax">Mean ± minmax</option>
+                  <option value="pdf">PDF</option>
+                </select></td>
+            <td><select name="age_units_2">
+                  <option value="ka">ka</option>
+                  <option value="Ma">Ma</option>
+                  <option value="a">a</option>
+                </select></td>
+            <td><input type="number" name="offset_2" class="form-control" /></td>
+            <td><input type="number" name="offset_err_2" class="form-control" /></td>
+            <td><select name="offset_type_2">
+                  <option value="mean_sd">Mean ± St. Dev.</option>
+                  <option value="mean_minmax">Mean ± MinMax</option>
+                  <option value="pdf">PDF</option>
+                </select></td>
+            <td><select name="offset_units_2">
+                  <option value="ka">m</option>
+                  <option value="Ma">km</option>
+                  <option value="a">mm</option>
+                </select></td>
+          </tr>
+          <!-- Offset Unit 3 -->
+          <tr>
+            <td><input type="text" name="unit_3" class="form-control" /></td>
+            <td><input type="number" name="age_3" class="form-control" /></td>
+            <td><input type="number" name="age_err_3" class="form-control" /></td>
+            <td><select name="age_type_3">
+                  <option value="mean_sd">Mean ± St. Dev.</option>
+                  <option value="mean_minmax">Mean ± minmax</option>
+                  <option value="pdf">PDF</option>
+                </select></td>
+            <td><select name="age_units_3">
+                  <option value="ka">ka</option>
+                  <option value="Ma">Ma</option>
+                  <option value="a">a</option>
+                </select></td>
+            <td><input type="number" name="offset_3" class="form-control" /></td>
+            <td><input type="number" name="offset_err_3" class="form-control" /></td>
+            <td><select name="offset_type_3">
+                  <option value="mean_sd">Mean ± St. Dev.</option>
+                  <option value="mean_minmax">Mean ± MinMax</option>
+                  <option value="pdf">PDF</option>
+                </select></td>
+            <td><select name="offset_units_3">
+                  <option value="ka">m</option>
+                  <option value="Ma">km</option>
+                  <option value="a">mm</option>
+                </select></td>
+          </tr>
+          <!-- Offset Unit 4 -->
+          <tr>
+            <td><input type="text" name="unit_4" class="form-control" /></td>
+            <td><input type="number" name="age_4" class="form-control" /></td>
+            <td><input type="number" name="age_err_4" class="form-control" /></td>
+            <td><select name="age_type_4">
+                  <option value="mean_sd">Mean ± St. Dev.</option>
+                  <option value="mean_minmax">Mean ± minmax</option>
+                  <option value="pdf">PDF</option>
+                </select></td>
+            <td><select name="age_units_4">
+                  <option value="ka">ka</option>
+                  <option value="Ma">Ma</option>
+                  <option value="a">a</option>
+                </select></td>
+            <td><input type="number" name="offset_4" class="form-control" /></td>
+            <td><input type="number" name="offset_err_4" class="form-control" /></td>
+            <td><select name="offset_type_4">
+                  <option value="mean_sd">Mean ± St. Dev.</option>
+                  <option value="mean_minmax">Mean ± MinMax</option>
+                  <option value="pdf">PDF</option>
+                </select></td>
+            <td><select name="offset_units_4">
+                  <option value="ka">m</option>
+                  <option value="Ma">km</option>
+                  <option value="a">mm</option>
+                </select></td>
+          </tr>
         </tbody>
       <table>
     </form>
+
+  <p>
+
+  {% if result != None %}
+
+  {{ result[1]|safe }}
+  {{ result[2]|safe }}
+
+  {% endif %}
+
+  </p>
 
   </body>
 </html>
