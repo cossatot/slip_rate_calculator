@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang='en'>
+  <head>
+    <script src="//code.jquery.com/jquery.min.js"></script>
+    <link href="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    <meta charset="utf-8">
+
+    {{ result[0]|safe }}
+
+    <title>Plot age/offset scatters</title>
+
+  </head>
+
+  <body>
+    <h1>Enter Age and Offset Data</h1>
+    <form action="." method="POST">
+
+      <table class="table-bordered table-condensed">
+        <tbody>
+          <tr>
+            <th>Name</th>
+            <th>Age</th>
+            <th>Age Err</th>
+            <th>Age Type</th>
+            <th>Age Units</th>
+            <th>Offset</th>
+            <th>Offset Err</th>
+            <th>Offset Type</th>
+            <th>Offset Units</th>
+          </tr>
+          <tr>
+            <td><input type="text" name="unit_1" class="form-control" /></td>
+            <td><input type="number" name="age_1" class="form-control" /></td>
+            <td><input type="number" name="age_err_1" class="form-control" /></td>
+            <td><select name="age_type_1">
+                  <option value="mean_sd">Mean ± St. dev.</option>
+                  <option value="mean_minmax">Mean ± minmax</option>
+                  <option value="pdf">PDF</option>
+                </select></td>
+            <td><select name="age_units_1">
+                  <option value="ka">ka</option>
+                  <option value="Ma">Ma</option>
+                  <option value="a">a</option>
+                </select></td>
+            <td><input type="number" name="offset_1" class="form-control" /></td>
+            <td><input type="number" name="offset_err_1" class="form-control" /></td>
+            <td><select name="offset_type_1">
+                  <option value="mean_sd">Mean ± St. Dev.</option>
+                  <option value="mean_minmax">Mean ± MinMax</option>
+                  <option value="pdf">PDF</option>
+                </select></td>
+            <td><select name="offset_units_1">
+                  <option value="ka">m</option>
+                  <option value="Ma">km</option>
+                  <option value="a">mm</option>
+                </select></td>
+          </tr>
+        </tbody>
+      <table>
+    </form>
+
+  </body>
+</html>
