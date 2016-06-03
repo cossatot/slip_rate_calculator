@@ -91,19 +91,56 @@ class OffsetMarker:
     
     """
     # TODO: Need to make a random.choice setting for large arrays of vals
+    """ TODO: Incorporating fault dip
+    
+    There are a variety of ways to do this.
+    The obvious way is to have separate groups of attributes for
+    (total) offset, heave, throw, and dip, each with the values, errors,
+    error types, and so forth. This leads to a lot of boilerplate code.
 
-    def __init__(self, offsets=np.array([]), offset_probs=None,
-                 offset_vals=None, offset_mean=None, offset_median=None,
-                 offset_sd=None, offset_mad=None,
-                 offset_min=None, offset_max=None,
+    Regardless of any code pattern repetition, the UI needs to be taken
+    into account. From the UI perspective, the wisest choice may be to have
+    a single generic set of fields for the offset component that is input,
+    and the same for fault dip (if necessary to be specified). There would
+    be another field for input type with values [heave, throw, offset].
+    The fault dip attribute/field groups are only required if heave or
+    throw is used.
+
+
+
+    """
+
+    def __init__(self, 
+                 offsets=np.array([]), 
+                 offset_probs=None,
+                 offset_vals=None, 
+                 offset_mean=None, 
+                 offset_median=None,
+                 offset_sd=None, 
+                 offset_mad=None,
+                 offset_min=None, 
+                 offset_max=None,
                  offset_seed=None,
-                 offset_dist_type='unspecified', offset_units='unspecified',
+                 offset_dist_type='unspecified', 
+                 offset_units='unspecified',
+                 heave=None,
+                 throw=None,
+                 fault_dip=None,
+                 fault_dip_err=None,
+                 fault_dip_dist_type='unspecified',
                  ages=np.array([]),
-                 age_probs=None, age_vals=None, 
-                 age_mean=None, age_median=None, age_sd=None, age_mad=None,
-                 age_min=None, age_max=None,
+                 age_probs=None, 
+                 age_vals=None, 
+                 age_mean=None, 
+                 age_median=None, 
+                 age_sd=None, 
+                 age_mad=None,
+                 age_min=None, 
+                 age_max=None,
                  age_seed=None,
-                 age_dist_type='unspecified', age_units='unspecified',
+                 age_dist_type='unspecified', 
+                 age_units='unspecified',
+                 name=None,
                  source='None'):
 
             self.offsets = offsets
@@ -116,7 +153,11 @@ class OffsetMarker:
             self.offset_min = offset_min
             self.offset_max = offset_max
             self.offset_units = offset_units
-
+            self.heave = heave
+            self.throw = throw
+            self.fault_dip = fault_dip
+            self.fault_dip_err = fault_dip_err
+            
             if offset_dist_type != 'unspecified':
                 self.offset_dist_type = offset_dist_type
             elif offset_dist_type == 'unspecified':
@@ -151,7 +192,14 @@ class OffsetMarker:
                     self.age_dist_type = 'arbitrary'
                      
             self.source = source
-            
+            self.name = name
+           
+    def offset_components_from_dip(self):
+        pass
+
+    def offset_from_heave_dip(self):
+        pass
+        
     
     def sample_offset_from_normal(self, n):
         """Generates n-length sample from normal distribution of offsets"""
