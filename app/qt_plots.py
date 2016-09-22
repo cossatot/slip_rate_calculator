@@ -208,7 +208,7 @@ def get_history_line_pts_from_results(res_df, age_array, n_pieces):
         x_array[:,1] = age_array.max(axis=1)
 
         y_array[:,0] = 0.
-        y_array[:,1] = age_array.max(axis=1) * res_df.m
+        y_array[:,1] = (age_array.max(axis=1) - age_array[:,0]) * res_df.m
 
     elif n_pieces == 2:
         x_array[:,0] = age_array[:,0]
@@ -216,7 +216,7 @@ def get_history_line_pts_from_results(res_df, age_array, n_pieces):
         x_array[:,2] = age_array.max(axis=1)
 
         y_array[:,0] = 0.
-        y_array[:,1] = res_df.breakpt.values * res_df.m1
+        y_array[:,1] = (res_df.breakpt.values - age_array[:,0]) * res_df.m1
         y_array[:,2] = cumulative_offsets(x_array[:,1], res_df.m1, 
                                           x_array[:,2], res_df.m2)
     else:

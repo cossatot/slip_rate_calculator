@@ -730,11 +730,15 @@ def penalized_piecewise_linear_opt(x_data, y_data, weight=0.3):
 
 
 def lin_fit(x_data, y_data):
-    x = x_data[:,np.newaxis]
+    x = x_data[:,np.newaxis] - x_data[0]
+    
+    # to solve for y = mx + b:
+    #x = np.vstack([x_data, np.ones(len(x_data))]).T
+
     m, _, _, _ = np.linalg.lstsq(x, y_data)
     m = m[0]
     
-    sum_sq_err = ((y_data - (m * x_data))**2).sum()
+    sum_sq_err = ((y_data - (m * x))**2).sum()
     
     return m, sum_sq_err
 
@@ -1033,6 +1037,7 @@ def run_interp_from_gui(offset_list, run_config_dict):
     print('sampling offset markers')
     age_arr, off_arr = make_age_offset_arrays(offset_list, rc['n_iters'],
                                        force_increasing=rc['force_increasing'],
+                                       zero_offset_age=rc['zero_offset_age'],
                                        seed=rc['random_seed'],
                                        seed_value=rc['random_seed_value'])
 
