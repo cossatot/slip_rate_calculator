@@ -730,15 +730,15 @@ def penalized_piecewise_linear_opt(x_data, y_data, weight=0.3):
 
 
 def lin_fit(x_data, y_data):
-    if x_data[0] == 0.:
-        x = x_data[:,np.newaxis]
-    else:
-        x = np.vstack([x_data, np.ones(len(x_data))]).T
+    x = x_data[:,np.newaxis] - x_data[0]
+    
+    # to solve for y = mx + b:
+    #x = np.vstack([x_data, np.ones(len(x_data))]).T
 
     m, _, _, _ = np.linalg.lstsq(x, y_data)
     m = m[0]
     
-    sum_sq_err = ((y_data - (m * x_data))**2).sum()
+    sum_sq_err = ((y_data - (m * x))**2).sum()
     
     return m, sum_sq_err
 
