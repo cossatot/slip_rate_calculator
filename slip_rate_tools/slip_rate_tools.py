@@ -560,8 +560,11 @@ def piecewise_linear_breakpt_search(x_data, y_data, n_pieces=2, n_iters=20,
     '''
     docs
     '''
+    
+    x_d = x_data - x_data[0] # adjust for zero_offset_age
+
     n_breaks = n_pieces - 1
-    breakpt_samples = np.random.uniform(0., x_data.max(), (n_iters, n_breaks))
+    breakpt_samples = np.random.uniform(0., x_d.max(), (n_iters, n_breaks))
     breakpt_samples = np.sort(breakpt_samples, axis=1)
     slopes = {}
     if allow_slip_reversals == False: # 1 means no reversal, 0 means reversal
@@ -574,7 +577,7 @@ def piecewise_linear_breakpt_search(x_data, y_data, n_pieces=2, n_iters=20,
 
     for i, breakpt in enumerate(breakpt_samples):
         try:
-            slopes[i], sum_sq_errs[i] = fit_piecewise_linear_w_breakpts(x_data,
+            slopes[i], sum_sq_errs[i] = fit_piecewise_linear_w_breakpts(x_d,
                                                                         y_data,
                                                                        breakpt)
             if penalize_rate_changes == True:
@@ -598,7 +601,7 @@ def piecewise_linear_breakpt_search(x_data, y_data, n_pieces=2, n_iters=20,
     else:
         min_i = np.argmin(sum_sq_errs)
 
-    return flatten([slopes[min_i], breakpt_samples[min_i], 
+    return flatten([slopes[min_i], breakpt_samples[min_i] + x_data[0], 
                     [sum_sq_errs[min_i]]])
 
 
