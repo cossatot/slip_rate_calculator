@@ -41,12 +41,33 @@ or any other Python versions you may have on your computer.
 [anaconda]: https://store.continuum.io/cshop/anaconda/
 [release]: https://github.com/cossatot/slip_rate_calculator/releases
 
+
 Then, either download a [release][release] if you don't have or don't want
 to use `git`, or (if you want easy updates) clone the git repository:
 
 ```
 git clone https://github.com/cossatot/slip_rate_calculator.git
 ```
+
+__Note:__ PyQt is now at version 5 in Anaconda's repository, which is
+incompatible. The easiest way to install a functioning Python environment is to 
+use Anaconda's environment system. From the `slip_rate_calculator` directory, 
+with Anaconda or Miniconda installed, type in the terminal:
+```
+conda env create -f slip_rate_calculator_env.yml
+
+```
+and follow the directions in the terminal.
+
+To activate the environment to be able to run the Slip Rate Calculator, type:
+```
+source activate slip_rate_calculator
+```
+if you're on Linux/MacOS, or
+```
+activate slip_rate_calculator
+```
+if you're on windows.
 
 The Slip Rate Calculator (which does need a more clever name) itself doesn't
 need to be installed. Instead, go into the `slip_rate_calculator/app`

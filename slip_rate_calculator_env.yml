@@ -1,0 +1,9 @@
+name: slip_rate_calculator
+dependencies:
+    - ipython
+    - numpy
+    - pandas
+    - pyqt=4
+    - matplotlib
+    - scipy
+    - qtconsole
