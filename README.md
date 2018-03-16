@@ -55,7 +55,6 @@ use Anaconda's environment system. From the `slip_rate_calculator` directory,
 with Anaconda or Miniconda installed, type in the terminal:
 ```
 conda env create -f slip_rate_calculator_env.yml
-
 ```
 and follow the directions in the terminal.
 
